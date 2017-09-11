@@ -29,13 +29,15 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.nio.file.Paths
 import java.sql.SQLException
+import java.time.Duration
+import java.time.Instant
 import java.util.*
 import java.util.concurrent.TimeUnit
 
 class FlowPermissionException(message: String) : FlowException(message)
 
 class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
-                              val logic: FlowLogic<R>,
+                              override val logic: FlowLogic<R>,
                               scheduler: FiberScheduler,
                               override val flowInitiator: FlowInitiator,
                               // Store the Party rather than the full cert path with PartyAndCertificate
@@ -49,23 +51,6 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
          * Return the current [FlowStateMachineImpl] or null if executing outside of one.
          */
         fun currentStateMachine(): FlowStateMachineImpl<*>? = Strand.currentStrand() as? FlowStateMachineImpl<*>
-
-        /**
-         * Provide a mechanism to sleep within a Strand without locking any transactional state
-         */
-        // TODO: inlined due to an intermittent Quasar error (to be fully investigated)
-        @Suppress("NOTHING_TO_INLINE")
-        @Suspendable
-        inline fun sleep(millis: Long) {
-            if (currentStateMachine() != null) {
-                val db = DatabaseTransactionManager.dataSource
-                DatabaseTransactionManager.current().commit()
-                DatabaseTransactionManager.current().close()
-                Strand.sleep(millis)
-                DatabaseTransactionManager.dataSource = db
-                DatabaseTransactionManager.newTransaction()
-            } else Strand.sleep(millis)
-        }
     }
 
     // These fields shouldn't be serialised, so they are marked @Transient.
@@ -179,7 +164,7 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
     }
 
     @Suspendable
-    override fun getFlowInfo(otherParty: Party, sessionFlow: FlowLogic<*>): FlowInfo {
+    override fun getFlowInfo(otherParty: Party, sessionFlow: FlowLogic<*>, maySkipCheckpoint: Boolean): FlowInfo {
         val state = getConfirmedSession(otherParty, sessionFlow).state as FlowSessionState.Initiated
         return state.context
     }
@@ -189,7 +174,8 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
                                           otherParty: Party,
                                           payload: Any,
                                           sessionFlow: FlowLogic<*>,
-                                          retrySend: Boolean): UntrustworthyData<T> {
+                                          retrySend: Boolean,
+                                          maySkipCheckpoint: Boolean): UntrustworthyData<T> {
         requireNonPrimitive(receiveType)
         logger.debug { "sendAndReceive(${receiveType.name}, $otherParty, ${payload.toString().abbreviate(300)}) ..." }
         val session = getConfirmedSessionIfPresent(otherParty, sessionFlow)
@@ -208,8 +194,9 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
     @Suspendable
     override fun <T : Any> receive(receiveType: Class<T>,
                                    otherParty: Party,
-                                   sessionFlow: FlowLogic<*>): UntrustworthyData<T> {
-        requireNonPrimitive(receiveType)
+                                   sessionFlow: FlowLogic<*>,
+                                   maySkipCheckpoint: Boolean): UntrustworthyData<T> {
+            requireNonPrimitive(receiveType)
         logger.debug { "receive(${receiveType.name}, $otherParty) ..." }
         val session = getConfirmedSession(otherParty, sessionFlow)
         val sessionData = receiveInternal<SessionData>(session, receiveType)
@@ -224,7 +211,7 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
     }
 
     @Suspendable
-    override fun send(otherParty: Party, payload: Any, sessionFlow: FlowLogic<*>) {
+    override fun send(otherParty: Party, payload: Any, sessionFlow: FlowLogic<*>, maySkipCheckpoint: Boolean) {
         logger.debug { "send($otherParty, ${payload.toString().abbreviate(300)})" }
         val session = getConfirmedSessionIfPresent(otherParty, sessionFlow)
         if (session == null) {
@@ -236,7 +223,7 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
     }
 
     @Suspendable
-    override fun waitForLedgerCommit(hash: SecureHash, sessionFlow: FlowLogic<*>): SignedTransaction {
+    override fun waitForLedgerCommit(hash: SecureHash, sessionFlow: FlowLogic<*>, maySkipCheckpoint: Boolean): SignedTransaction {
         logger.debug { "waitForLedgerCommit($hash) ..." }
         suspend(WaitForLedgerCommit(hash, sessionFlow.stateMachine as FlowStateMachineImpl<*>))
         val stx = serviceHub.validatedTransactions.getTransaction(hash)
@@ -254,6 +241,11 @@ class FlowStateMachineImpl<R>(override val id: StateMachineRunId,
             }
         }
         throw IllegalStateException("We were resumed after waiting for $hash but it wasn't found in our local storage")
+    }
+
+    @Suspendable
+    override fun sleepUntil(until: Instant, maySkipCheckpoint: Boolean) {
+        Strand.sleep(Duration.between(Instant.now(), until).toNanos(), TimeUnit.NANOSECONDS)
     }
 
     // TODO Dummy implementation of access to application specific permission controls and audit logging

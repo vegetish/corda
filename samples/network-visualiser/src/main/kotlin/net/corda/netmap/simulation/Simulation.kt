@@ -121,13 +121,14 @@ abstract class Simulation(val networkSendManuallyPumped: Boolean,
             val cfg = testNodeConfiguration(
                     baseDirectory = config.baseDirectory,
                     myLegalName = RATES_SERVICE_NAME)
+            System.setProperty("net.corda.node.cordapp.scan.packages", "net.corda.irs.api")
             return object : SimulatedNode(cfg, network, networkMapAddr, advertisedServices, id, overrideServices, entropyRoot) {
                 override fun start() = super.start().apply {
                     registerInitiatedFlow(NodeInterestRates.FixQueryHandler::class.java)
                     registerInitiatedFlow(NodeInterestRates.FixSignHandler::class.java)
                     javaClass.classLoader.getResourceAsStream("net/corda/irs/simulation/example.rates.txt").use {
                         database.transaction {
-                            installCordaService(NodeInterestRates.Oracle::class.java).uploadFixes(it.reader().readText())
+                            findTokenizableService(NodeInterestRates.Oracle::class.java)!!.uploadFixes(it.reader().readText())
                         }
                     }
                 }

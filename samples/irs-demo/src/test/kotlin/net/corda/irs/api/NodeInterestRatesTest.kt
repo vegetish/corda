@@ -63,7 +63,7 @@ class NodeInterestRatesTest : TestDependencyInjectionBase() {
 
     @Before
     fun setUp() {
-        setCordappPackages("net.corda.finance.contracts")
+        setCordappPackages("net.corda.finance.contracts", "net.corda.irs")
         database = configureDatabase(makeTestDataSourceProperties(), makeTestDatabaseProperties(), createIdentityService = ::makeTestIdentityService)
         database.transaction {
             oracle = NodeInterestRates.Oracle(services).apply { knownFixes = TEST_DATA }
@@ -208,7 +208,7 @@ class NodeInterestRatesTest : TestDependencyInjectionBase() {
             internals.registerInitiatedFlow(NodeInterestRates.FixQueryHandler::class.java)
             internals.registerInitiatedFlow(NodeInterestRates.FixSignHandler::class.java)
             database.transaction {
-                internals.installCordaService(NodeInterestRates.Oracle::class.java).knownFixes = TEST_DATA
+                internals.findTokenizableService(NodeInterestRates.Oracle::class.java)!!.knownFixes = TEST_DATA
             }
         }
         val tx = makePartialTX()

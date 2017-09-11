@@ -148,9 +148,9 @@ class MockNetwork(private val networkSendManuallyPumped: Boolean = false,
                         advertisedServices: Set<ServiceInfo>,
                         val id: Int,
                         val overrideServices: Map<ServiceInfo, KeyPair>?,
-                        val entropyRoot: BigInteger = BigInteger.valueOf(random63BitValue())) :
+                        private val entropyRoot: BigInteger = BigInteger.valueOf(random63BitValue())) :
             AbstractNode(config, advertisedServices, TestClock(), mockNet.busyLatch) {
-        var counter = entropyRoot
+        private var counter = entropyRoot
         override val log: Logger = loggerFor<MockNode>()
         override val platformVersion: Int get() = 1
         override val serverThread: AffinityExecutor =
@@ -277,7 +277,7 @@ class MockNetwork(private val networkSendManuallyPumped: Boolean = false,
                         throw IllegalStateException("Unable to enumerate all nodes in BFT cluster.")
                     }
                     clusterNodes.forEach {
-                        val notaryService = it.started!!.smm.findServices { it is BFTNonValidatingNotaryService }.single() as BFTNonValidatingNotaryService
+                        val notaryService = it.findTokenizableService<BFTNonValidatingNotaryService>()!!
                         notaryService.waitUntilReplicaHasInitialized()
                     }
                 }

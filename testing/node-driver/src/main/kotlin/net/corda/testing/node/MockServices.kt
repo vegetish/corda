@@ -2,6 +2,7 @@ package net.corda.testing.node
 
 import net.corda.core.cordapp.CordappProvider
 import net.corda.core.crypto.*
+import net.corda.core.flows.FlowLogic
 import net.corda.core.flows.StateMachineRunId
 import net.corda.core.identity.PartyAndCertificate
 import net.corda.core.messaging.DataFeed
@@ -23,6 +24,7 @@ import net.corda.node.services.persistence.HibernateConfiguration
 import net.corda.node.services.persistence.InMemoryStateMachineRecordedTransactionMappingStorage
 import net.corda.node.services.schema.HibernateObserver
 import net.corda.node.services.schema.NodeSchemaService
+import net.corda.node.services.statemachine.FlowStateMachineImpl
 import net.corda.node.services.transactions.InMemoryTransactionVerifierService
 import net.corda.node.services.vault.NodeVaultService
 import net.corda.node.utilities.CordaPersistence
@@ -166,6 +168,8 @@ open class MockServices(cordappPackages: List<String> = emptyList(), vararg val 
     override fun <T : SerializeAsToken> cordaService(type: Class<T>): T = throw IllegalArgumentException("${type.name} not found")
 
     override fun jdbcSession(): Connection = throw UnsupportedOperationException()
+
+    override fun getCurrentTopLevelFlowLogic() = FlowStateMachineImpl.currentStateMachine()?.logic
 }
 
 class MockKeyManagementService(val identityService: IdentityService,
