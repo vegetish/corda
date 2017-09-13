@@ -134,7 +134,7 @@ UNRELEASED
    * Parties were not displayed for created deals in single view.
    * Non-default notional amounts caused the creation of new deals to fail.
 
-* Gradle task ``deployNodes`` can have an additional parameter `configFile` with the path to a properties file
+* Cordformation node building DSL can have an additional parameter `configFile` with the path to a properties file
   to be appended to node.conf.
 
 Milestone 14
