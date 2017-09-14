@@ -68,28 +68,28 @@ task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
         name "O=Notary Service,L=Zurich,C=CH"
         advertisedServices = ["corda.notary.validating"]
         p2pPort 10002
-        cordapps = ["net.corda:finance:$corda_release_version"]
+        cordapps = ["$project.group:finance:$corda_release_version"]
     }
     node {
         name "O=Bank A,L=London,C=GB"
         advertisedServices = []
         p2pPort 10004
         webPort 10005
-        cordapps = ["net.corda:finance:$corda_release_version"]
+        cordapps = ["$project.group:finance:$corda_release_version"]
     }
     node {
         name "O=Bank B,L=New York,C=US"
         advertisedServices = []
         p2pPort 10006
         webPort 10007
-        cordapps = ["net.corda:finance:$corda_release_version"]
+        cordapps = ["$project.group:finance:$corda_release_version"]
     }
     node {
         name "O=Bank C,L=Tokyo,C=JP"
         advertisedServices = []
         p2pPort 10008
         webPort 10009
-        cordapps = ["net.corda:finance:$corda_release_version"]
+        cordapps = ["$project.group:finance:$corda_release_version"]
     }
 }
 
