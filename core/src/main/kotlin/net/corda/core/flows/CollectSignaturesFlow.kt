@@ -3,13 +3,13 @@ package net.corda.core.flows
 import co.paralleluniverse.fibers.Suspendable
 import net.corda.core.crypto.TransactionSignature
 import net.corda.core.crypto.isFulfilledBy
-import net.corda.core.utilities.toBase58String
 import net.corda.core.identity.AnonymousParty
 import net.corda.core.identity.Party
 import net.corda.core.node.ServiceHub
 import net.corda.core.transactions.SignedTransaction
 import net.corda.core.transactions.WireTransaction
 import net.corda.core.utilities.ProgressTracker
+import net.corda.core.utilities.toBase58String
 import net.corda.core.utilities.unwrap
 import java.security.PublicKey
 
@@ -87,7 +87,7 @@ class CollectSignaturesFlow @JvmOverloads constructor (val partiallySignedTx: Si
         }
 
         // The signatures must be valid and the transaction must be valid.
-        partiallySignedTx.verifySignaturesExcept(*notSigned.toTypedArray())
+        partiallySignedTx.verifySignaturesExcept(notSigned)
         partiallySignedTx.tx.toLedgerTransaction(serviceHub).verify()
 
         // Determine who still needs to sign.
@@ -239,7 +239,7 @@ abstract class SignTransactionFlow(val otherParty: Party,
         val signed = stx.sigs.map { it.by }
         val allSigners = stx.tx.requiredSigningKeys
         val notSigned = allSigners - signed
-        stx.verifySignaturesExcept(*notSigned.toTypedArray())
+        stx.verifySignaturesExcept(notSigned)
     }
 
     /**

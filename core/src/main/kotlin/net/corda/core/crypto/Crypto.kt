@@ -468,7 +468,6 @@ object Crypto {
      * @param publicKey the signer's [PublicKey].
      * @param signatureData the signatureData on a message.
      * @param clearData the clear data/message that was signed (usually the Merkle root).
-     * @return true if verification passes or throws an exception if verification fails.
      * @throws InvalidKeyException if the key is invalid.
      * @throws SignatureException if this signatureData object is not initialized properly,
      * the passed-in signatureData is improperly encoded or of the wrong type,
@@ -477,8 +476,8 @@ object Crypto {
      */
     @JvmStatic
     @Throws(InvalidKeyException::class, SignatureException::class)
-    fun doVerify(schemeCodeName: String, publicKey: PublicKey, signatureData: ByteArray, clearData: ByteArray): Boolean {
-        return doVerify(findSignatureScheme(schemeCodeName), publicKey, signatureData, clearData)
+    fun doVerify(schemeCodeName: String, publicKey: PublicKey, signatureData: ByteArray, clearData: ByteArray) {
+        doVerify(findSignatureScheme(schemeCodeName), publicKey, signatureData, clearData)
     }
 
     /**
@@ -489,7 +488,6 @@ object Crypto {
      * @param publicKey the signer's [PublicKey].
      * @param signatureData the signatureData on a message.
      * @param clearData the clear data/message that was signed (usually the Merkle root).
-     * @return true if verification passes or throws an exception if verification fails.
      * @throws InvalidKeyException if the key is invalid.
      * @throws SignatureException if this signatureData object is not initialized properly,
      * the passed-in signatureData is improperly encoded or of the wrong type,
@@ -498,8 +496,8 @@ object Crypto {
      */
     @JvmStatic
     @Throws(InvalidKeyException::class, SignatureException::class)
-    fun doVerify(publicKey: PublicKey, signatureData: ByteArray, clearData: ByteArray): Boolean {
-        return doVerify(findSignatureScheme(publicKey), publicKey, signatureData, clearData)
+    fun doVerify(publicKey: PublicKey, signatureData: ByteArray, clearData: ByteArray) {
+        doVerify(findSignatureScheme(publicKey), publicKey, signatureData, clearData)
     }
 
     /**
@@ -509,7 +507,6 @@ object Crypto {
      * @param publicKey the signer's [PublicKey].
      * @param signatureData the signatureData on a message.
      * @param clearData the clear data/message that was signed (usually the Merkle root).
-     * @return true if verification passes or throws an exception if verification fails.
      * @throws InvalidKeyException if the key is invalid.
      * @throws SignatureException if this signatureData object is not initialized properly,
      * the passed-in signatureData is improperly encoded or of the wrong type,
@@ -518,16 +515,14 @@ object Crypto {
      */
     @JvmStatic
     @Throws(InvalidKeyException::class, SignatureException::class)
-    fun doVerify(signatureScheme: SignatureScheme, publicKey: PublicKey, signatureData: ByteArray, clearData: ByteArray): Boolean {
+    fun doVerify(signatureScheme: SignatureScheme, publicKey: PublicKey, signatureData: ByteArray, clearData: ByteArray) {
         require(isSupportedSignatureScheme(signatureScheme)) {
             "Unsupported key/algorithm for schemeCodeName: ${signatureScheme.schemeCodeName}"
         }
         if (signatureData.isEmpty()) throw IllegalArgumentException("Signature data is empty!")
         if (clearData.isEmpty()) throw IllegalArgumentException("Clear data is empty, nothing to verify!")
         val verificationResult = isValid(signatureScheme, publicKey, signatureData, clearData)
-        if (verificationResult) {
-            return true
-        } else {
+        if (!verificationResult) {
             throw SignatureException("Signature Verification failed!")
         }
     }
@@ -537,7 +532,6 @@ object Crypto {
      * It returns true if it succeeds, but it always throws an exception if verification fails.
      * @param txId transaction's id (Merkle root).
      * @param transactionSignature the signature on the transaction.
-     * @return true if verification passes or throw exception if verification fails.
      * @throws InvalidKeyException if the key is invalid.
      * @throws SignatureException if this signatureData object is not initialized properly,
      * the passed-in signatureData is improperly encoded or of the wrong type,
@@ -546,9 +540,9 @@ object Crypto {
      */
     @JvmStatic
     @Throws(InvalidKeyException::class, SignatureException::class)
-    fun doVerify(txId: SecureHash, transactionSignature: TransactionSignature): Boolean {
+    fun doVerify(txId: SecureHash, transactionSignature: TransactionSignature) {
         val signableData = SignableData(txId, transactionSignature.signatureMetadata)
-        return Crypto.doVerify(transactionSignature.by, transactionSignature.bytes, signableData.serialize().bytes)
+        Crypto.doVerify(transactionSignature.by, transactionSignature.bytes, signableData.serialize().bytes)
     }
 
     /**
@@ -610,7 +604,7 @@ object Crypto {
      * @throws IllegalArgumentException if the requested signature scheme is not supported.
      */
     @JvmStatic
-    @Throws(SignatureException::class)
+    @Throws(InvalidKeyException::class, SignatureException::class)
     fun isValid(signatureScheme: SignatureScheme, publicKey: PublicKey, signatureData: ByteArray, clearData: ByteArray): Boolean {
         require(isSupportedSignatureScheme(signatureScheme)) {
             "Unsupported key/algorithm for schemeCodeName: ${signatureScheme.schemeCodeName}"

@@ -152,6 +152,8 @@ UNRELEASED
 
 * ``X509CertificateHolder`` has been removed from the public API, replaced by ``java.security.X509Certificate``.
 
+* Added an overload of ``TransactionWithSignatures.verifySignaturesExcept`` which takes in a collection of ``PublicKey``s
+
 Milestone 14
 ------------
 
