@@ -82,7 +82,7 @@ run all the nodes at once. Each node in the ``nodes`` folder has the following s
     . nodeName
     ├── corda.jar       // The Corda runtime
     ├── node.conf       // The node's configuration
-    └── plugins         // Any installed CorDapps
+    └── cordapps         // Any installed CorDapps
 
 .. note:: Outside of development environments, do not store your node directories in the build folder.
 

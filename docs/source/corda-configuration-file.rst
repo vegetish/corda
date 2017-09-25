@@ -94,7 +94,7 @@ path to the node's base directory.
 
 :extraAdvertisedServiceIds: A list of ServiceType id strings to be advertised to the NetworkMapService and thus be available
     when other nodes query the NetworkMapCache for supporting nodes. This can also include plugin services loaded from .jar
-    files in the plugins folder. Optionally, a custom advertised service name can be provided by appending it to the service
+    files in the cordapps folder. Optionally, a custom advertised service name can be provided by appending it to the service
     type id: ``"corda.notary.validating|Notary A"``
 
 :notaryNodeAddress: The host and port to which to bind the embedded Raft server. Required only when running a distributed

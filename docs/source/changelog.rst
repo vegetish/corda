@@ -7,6 +7,8 @@ from the previous milestone release.
 UNRELEASED
 ----------
 
+* Renamed "plugins" directory on nodes to "cordapps"
+
 * ``Cordform`` and node identity generation
   * Cordform may not specify a value for ``NetworkMap``, when that happens, during the task execution the following happens:
     1. Each node is started and its signed serialized NodeInfo is written to disk in the node base directory.

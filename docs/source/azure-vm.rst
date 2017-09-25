@@ -105,14 +105,14 @@ For Corda nodes running release M10
 
 .. sourcecode:: shell
 
-	cd /opt/corda/plugins
+	cd /opt/corda/cordapps
 	wget http://downloads.corda.net/cordapps/net/corda/yo/0.10.1/yo-0.10.1.jar
 
 For Corda nodes running release M11
 
 .. sourcecode:: shell
 
-	cd /opt/corda/plugins
+	cd /opt/corda/cordapps
 	wget http://downloads.corda.net/cordapps/net/corda/yo/0.11.0/yo-0.11.0.jar
 
 Now restart Corda and the Corda webserver using the following commands or restart your Corda VM from the Azure portal:

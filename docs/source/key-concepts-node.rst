@@ -72,7 +72,7 @@ The plugin registry
 -------------------
 The plugin registry is where new CorDapps are installed to extend the behavior of the node.
 
-The node also has several plugins installed by default to handle common tasks such as:
+The node also has several cordapps installed by default to handle common tasks such as:
 
 * Retrieving transactions and attachments from counterparties
 * Upgrading contracts
