@@ -16,7 +16,7 @@ import java.util.stream.Stream
 class PluginController : Controller() {
 
     private val jvm by inject<JVMConfig>()
-    private val pluginDir: Path = jvm.applicationDir.resolve("cordapps")
+    private val pluginDir: Path = jvm.applicationDir.resolve(NodeConfig.CORDAPP_DIR_NAME)
     private val bankOfCorda: Path = pluginDir.resolve("bank-of-corda.jar")
     private val finance: Path = pluginDir.resolve("corda-finance.jar")
 

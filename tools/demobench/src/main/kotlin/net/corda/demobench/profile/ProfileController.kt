@@ -4,10 +4,7 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import javafx.stage.FileChooser
 import javafx.stage.FileChooser.ExtensionFilter
-import net.corda.demobench.model.InstallConfig
-import net.corda.demobench.model.InstallFactory
-import net.corda.demobench.model.JVMConfig
-import net.corda.demobench.model.NodeController
+import net.corda.demobench.model.*
 import net.corda.demobench.plugin.PluginController
 import net.corda.demobench.plugin.inPluginsDir
 import net.corda.demobench.plugin.isPlugin
@@ -63,7 +60,7 @@ class ProfileController : Controller() {
                     log.info("Wrote: $file")
 
                     // Write all of the non-built-in plugins.
-                    val pluginDir = Files.createDirectory(nodeDir.resolve("cordapps"))
+                    val pluginDir = Files.createDirectory(nodeDir.resolve(NodeConfig.CORDAPP_DIR_NAME))
                     pluginController.userPluginsFor(config).forEach {
                         val plugin = Files.copy(it, pluginDir.resolve(it.fileName.toString()))
                         log.info("Wrote: $plugin")

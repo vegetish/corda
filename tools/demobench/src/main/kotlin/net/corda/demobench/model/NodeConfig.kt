@@ -21,13 +21,14 @@ class NodeConfig(
 ) : NetworkMapConfig(legalName, p2pPort), HasPlugins {
 
     companion object {
+        val CORDAPP_DIR_NAME = "cordapps"
         val renderOptions: ConfigRenderOptions = ConfigRenderOptions.defaults().setOriginComments(false)
         val defaultUser = user("guest")
     }
 
     val nearestCity: String = legalName.locality
     val nodeDir: Path = baseDir.resolve(key)
-    override val pluginDir: Path = nodeDir.resolve("cordapps")
+    override val pluginDir: Path = nodeDir.resolve(CORDAPP_DIR_NAME)
     val explorerDir: Path = baseDir.resolve("$key-explorer")
 
     var state: NodeState = NodeState.STARTING
