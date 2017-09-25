@@ -27,7 +27,7 @@ class NodeConfig(
 
     val nearestCity: String = legalName.locality
     val nodeDir: Path = baseDir.resolve(key)
-    override val pluginDir: Path = nodeDir.resolve("plugins")
+    override val pluginDir: Path = nodeDir.resolve("cordapps")
     val explorerDir: Path = baseDir.resolve("$key-explorer")
 
     var state: NodeState = NodeState.STARTING

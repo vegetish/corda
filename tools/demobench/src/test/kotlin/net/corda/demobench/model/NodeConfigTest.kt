@@ -9,6 +9,7 @@ import net.corda.core.identity.CordaX500Name
 import net.corda.core.internal.div
 import net.corda.core.utilities.NetworkHostAndPort
 import net.corda.node.internal.NetworkMapInfo
+import net.corda.node.internal.cordapp.CordappLoader
 import net.corda.node.services.config.FullNodeConfiguration
 import net.corda.nodeapi.User
 import net.corda.nodeapi.config.parseAs
@@ -53,7 +54,7 @@ class NodeConfigTest {
     @Test
     fun `test plugin directory`() {
         val config = createConfig(legalName = myLegalName)
-        assertEquals(baseDir / "myname" / "plugins", config.pluginDir)
+        assertEquals(baseDir / "myname" / CordappLoader.CORDAPPS_DIR_NAME, config.pluginDir)
     }
 
     @Test
@@ -248,7 +249,7 @@ class NodeConfigTest {
         val moved = config.moveTo(elsewhere)
         assertEquals(elsewhere / "myname", moved.nodeDir)
         assertEquals(elsewhere / "myname-explorer", moved.explorerDir)
-        assertEquals(elsewhere / "myname" / "plugins", moved.pluginDir)
+        assertEquals(elsewhere / "myname" / CordappLoader.CORDAPPS_DIR_NAME, moved.pluginDir)
     }
 
     private fun createConfig(

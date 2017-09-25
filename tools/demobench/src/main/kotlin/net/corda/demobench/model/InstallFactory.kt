@@ -69,7 +69,7 @@ class InstallFactory : Controller() {
  */
 class InstallConfig internal constructor(val baseDir: Path, private val config: NodeConfig) : HasPlugins {
     val key = config.key
-    override val pluginDir: Path = baseDir.resolve("plugins")
+    override val pluginDir: Path = baseDir.resolve("cordapps")
 
     fun deleteBaseDir(): Boolean = baseDir.toFile().deleteRecursively()
     fun installTo(installDir: Path) = config.moveTo(installDir)

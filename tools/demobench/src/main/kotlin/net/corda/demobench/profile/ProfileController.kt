@@ -63,7 +63,7 @@ class ProfileController : Controller() {
                     log.info("Wrote: $file")
 
                     // Write all of the non-built-in plugins.
-                    val pluginDir = Files.createDirectory(nodeDir.resolve("plugins"))
+                    val pluginDir = Files.createDirectory(nodeDir.resolve("cordapps"))
                     pluginController.userPluginsFor(config).forEach {
                         val plugin = Files.copy(it, pluginDir.resolve(it.fileName.toString()))
                         log.info("Wrote: $plugin")

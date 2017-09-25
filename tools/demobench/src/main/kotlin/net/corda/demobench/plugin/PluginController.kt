@@ -16,7 +16,7 @@ import java.util.stream.Stream
 class PluginController : Controller() {
 
     private val jvm by inject<JVMConfig>()
-    private val pluginDir: Path = jvm.applicationDir.resolve("plugins")
+    private val pluginDir: Path = jvm.applicationDir.resolve("cordapps")
     private val bankOfCorda: Path = pluginDir.resolve("bank-of-corda.jar")
     private val finance: Path = pluginDir.resolve("corda-finance.jar")
 
@@ -30,7 +30,7 @@ class PluginController : Controller() {
         }
         if (finance.exists()) {
             finance.copyToDirectory(config.pluginDir, StandardCopyOption.REPLACE_EXISTING)
-            log.info("Installed 'Finance' plugin")
+            log.info("Installed 'Finance' cordapp")
         }
         // Nodes cannot issue cash unless they contain the "Bank of Corda" plugin.
         if (config.isCashIssuer && bankOfCorda.exists()) {

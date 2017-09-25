@@ -199,7 +199,7 @@ task javapackage(dependsOn: distZip) {
 
                 fileset(dir: dist_source, type: 'data') {
                     include(name: 'corda/*.jar')
-                    include(name: 'plugins/*.jar')
+                    include(name: 'cordapps/*.jar')
                     include(name: 'explorer/*.jar')
                 }
 
