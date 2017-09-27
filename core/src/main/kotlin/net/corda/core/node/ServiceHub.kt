@@ -7,10 +7,6 @@ import net.corda.core.crypto.SignableData
 import net.corda.core.crypto.SignatureMetadata
 import net.corda.core.crypto.TransactionSignature
 import net.corda.core.flows.ContractUpgradeFlow
-import net.corda.core.identity.AbstractParty
-import net.corda.core.identity.AnonymousParty
-import net.corda.core.identity.Party
-import net.corda.core.internal.toMultiMap
 import net.corda.core.node.services.*
 import net.corda.core.serialization.SerializeAsToken
 import net.corda.core.transactions.FilteredTransaction
@@ -163,9 +159,7 @@ interface ServiceHub : ServicesForResolution {
     @Throws(TransactionResolutionException::class)
     override fun loadState(stateRef: StateRef): TransactionState<*> {
         val stx = validatedTransactions.getTransaction(stateRef.txhash) ?: throw TransactionResolutionException(stateRef.txhash)
-        return if (stx.isNotaryChangeTransaction()) {
-            stx.resolveNotaryChangeTransaction(this).outputs[stateRef.index]
-        } else stx.tx.outputs[stateRef.index]
+        return stx.resolveBaseTransaction(this).outputs[stateRef.index]
     }
 
     /**
@@ -176,11 +170,7 @@ interface ServiceHub : ServicesForResolution {
     @Throws(TransactionResolutionException::class)
     fun <T : ContractState> toStateAndRef(stateRef: StateRef): StateAndRef<T> {
         val stx = validatedTransactions.getTransaction(stateRef.txhash) ?: throw TransactionResolutionException(stateRef.txhash)
-        return if (stx.isNotaryChangeTransaction()) {
-            stx.resolveNotaryChangeTransaction(this).outRef(stateRef.index)
-        } else {
-            stx.tx.outRef(stateRef.index)
-        }
+        return stx.resolveBaseTransaction(this).outRef<T>(stateRef.index)
     }
 
     private val legalIdentityKey: PublicKey get() = this.myInfo.legalIdentitiesAndCerts.first().owningKey
