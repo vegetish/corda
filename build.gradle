@@ -302,3 +302,5 @@ artifactory {
         }
     }
 }
+
+task generateApi(type: net.corda.plugins.GenerateApi)
