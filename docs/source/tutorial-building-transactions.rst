@@ -67,7 +67,7 @@ different ``SignedTransaction``. For instance in a foreign exchange
 scenario we shouldn't send a ``SignedTransaction`` with only our sell
 side populated as that could be used to take the money without the
 expected return of the other currency. Also, it is best practice for
-flows to receive back the ``DigitalSignature.WithKey`` of other parties
+flows to receive back the ``TransactionSignature`` of other parties
 rather than a full ``SignedTransaction`` objects, because otherwise we
 have to separately check that this is still the same
 ``SignedTransaction`` and not a malicious substitute.
@@ -87,7 +87,7 @@ One of the first steps to forming a transaction is gathering the set of
 input references. This process will clearly vary according to the nature
 of the business process being captured by the smart contract and the
 parameterised details of the request. However, it will generally involve
-searching the Vault via the ``VaultQueryService`` interface on the
+searching the Vault via the ``VaultService`` interface on the
 ``ServiceHub`` to locate the input states.
 
 To give a few more specific details consider two simplified real world
@@ -161,7 +161,7 @@ in the right workflow state over the RPC interface. The RPC will then
 initiate the relevant flow using ``StateRef``, or ``linearId`` values as
 parameters to the flow to identify the states being operated upon. Thus
 code to gather the latest input state for a given ``StateRef`` would use
-the ``VaultQueryService`` as follows:
+the ``VaultService`` as follows:
 
 .. literalinclude:: example-code/src/main/kotlin/net/corda/docs/WorkflowTransactionBuildTutorial.kt
     :language: kotlin

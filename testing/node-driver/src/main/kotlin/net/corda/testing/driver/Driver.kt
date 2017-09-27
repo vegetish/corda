@@ -92,7 +92,8 @@ interface DriverDSLExposedInterface : CordformContext {
             rpcUsers: List<User> = defaultParameters.rpcUsers,
             verifierType: VerifierType = defaultParameters.verifierType,
             customOverrides: Map<String, Any?> = defaultParameters.customOverrides,
-            startInSameProcess: Boolean? = defaultParameters.startInSameProcess): CordaFuture<NodeHandle>
+            startInSameProcess: Boolean? = defaultParameters.startInSameProcess,
+            maximumHeapSize: String = defaultParameters.maximumHeapSize): CordaFuture<NodeHandle>
 
     /**
      * Helper function for starting a [node] with custom parameters from Java.
@@ -107,7 +108,8 @@ interface DriverDSLExposedInterface : CordformContext {
 
     fun startNodes(
             nodes: List<CordformNode>,
-            startInSameProcess: Boolean? = null
+            startInSameProcess: Boolean? = null,
+            maximumHeapSize: String = "200m"
     ): List<CordaFuture<NodeHandle>>
 
     /**
@@ -135,7 +137,7 @@ interface DriverDSLExposedInterface : CordformContext {
      *
      * @param handle The handle for the node that this webserver connects to via RPC.
      */
-    fun startWebserver(handle: NodeHandle): CordaFuture<WebserverHandle>
+    fun startWebserver(handle: NodeHandle, maximumHeapSize: String = "200m"): CordaFuture<WebserverHandle>
 
     /**
      * Starts a network map service node. Note that only a single one should ever be running, so you will probably want
@@ -143,7 +145,7 @@ interface DriverDSLExposedInterface : CordformContext {
      * @param startInProcess Determines if the node should be started inside this process. If null the Driver-level
      *     value will be used.
      */
-    fun startDedicatedNetworkMapService(startInProcess: Boolean? = null): CordaFuture<NodeHandle>
+    fun startDedicatedNetworkMapService(startInProcess: Boolean? = null, maximumHeapSize: String = "200m"): CordaFuture<NodeHandle>
 
     fun waitForAllNodesToFinish()
 
@@ -219,7 +221,7 @@ sealed class NodeHandle {
         }
     }
 
-    fun rpcClientToNode(): CordaRPCClient = CordaRPCClient(configuration.rpcAddress!!, initialiseSerialization = false)
+    fun rpcClientToNode(): CordaRPCClient = CordaRPCClient(configuration.rpcAddress!!)
 
     /**
      * Stops the referenced node.
@@ -252,7 +254,7 @@ sealed class PortAllocation {
 }
 
 /**
- * Helper builder for configuring a [node] from Java.
+ * Helper builder for configuring a [Node] from Java.
  */
 data class NodeParameters(
         val providedName: CordaX500Name? = null,
@@ -260,7 +262,8 @@ data class NodeParameters(
         val rpcUsers: List<User> = emptyList(),
         val verifierType: VerifierType = VerifierType.InMemory,
         val customOverrides: Map<String, Any?> = emptyMap(),
-        val startInSameProcess: Boolean? = null
+        val startInSameProcess: Boolean? = null,
+        val maximumHeapSize: String = "200m"
 ) {
     fun setProvidedName(providedName: CordaX500Name?) = copy(providedName = providedName)
     fun setAdvertisedServices(advertisedServices: Set<ServiceInfo>) = copy(advertisedServices = advertisedServices)
@@ -268,6 +271,7 @@ data class NodeParameters(
     fun setVerifierType(verifierType: VerifierType) = copy(verifierType = verifierType)
     fun setCustomerOverrides(customOverrides: Map<String, Any?>) = copy(customOverrides = customOverrides)
     fun setStartInSameProcess(startInSameProcess: Boolean?) = copy(startInSameProcess = startInSameProcess)
+    fun setMaximumHeapSize(maximumHeapSize: String) = copy(maximumHeapSize = maximumHeapSize)
 }
 
 /**
@@ -683,7 +687,7 @@ class DriverDSL(
 
     private fun establishRpc(config: FullNodeConfiguration, processDeathFuture: CordaFuture<out Process>): CordaFuture<CordaRPCOps> {
         val rpcAddress = config.rpcAddress!!
-        val client = CordaRPCClient(rpcAddress, initialiseSerialization = false)
+        val client = CordaRPCClient(rpcAddress)
         val connectionFuture = poll(executorService, "RPC connection") {
             try {
                 client.start(config.rpcUsers[0].username, config.rpcUsers[0].password)
@@ -729,7 +733,8 @@ class DriverDSL(
             rpcUsers: List<User>,
             verifierType: VerifierType,
             customOverrides: Map<String, Any?>,
-            startInSameProcess: Boolean?
+            startInSameProcess: Boolean?,
+            maximumHeapSize: String
     ): CordaFuture<NodeHandle> {
         val p2pAddress = portAllocation.nextHostAndPort()
         val rpcAddress = portAllocation.nextHostAndPort()
@@ -755,10 +760,10 @@ class DriverDSL(
                         "verifierType" to verifierType.name
                 ) + customOverrides
         )
-        return startNodeInternal(config, webAddress, startInSameProcess)
+        return startNodeInternal(config, webAddress, startInSameProcess, maximumHeapSize)
     }
 
-    override fun startNodes(nodes: List<CordformNode>, startInSameProcess: Boolean?): List<CordaFuture<NodeHandle>> {
+    override fun startNodes(nodes: List<CordformNode>, startInSameProcess: Boolean?, maximumHeapSize: String): List<CordaFuture<NodeHandle>> {
         val networkMapServiceConfigLookup = networkMapServiceConfigLookup(nodes)
         return nodes.map { node ->
             portAllocation.nextHostAndPort() // rpcAddress
@@ -775,7 +780,7 @@ class DriverDSL(
                             "notaryClusterAddresses" to node.notaryClusterAddresses
                     )
             )
-            startNodeInternal(config, webAddress, startInSameProcess)
+            startNodeInternal(config, webAddress, startInSameProcess, maximumHeapSize)
         }
     }
 
@@ -836,9 +841,9 @@ class DriverDSL(
         throw IllegalStateException("Webserver at ${handle.webAddress} has died")
     }
 
-    override fun startWebserver(handle: NodeHandle): CordaFuture<WebserverHandle> {
+    override fun startWebserver(handle: NodeHandle, maximumHeapSize: String): CordaFuture<WebserverHandle> {
         val debugPort = if (isDebug) debugPortAllocation.nextPort() else null
-        val processFuture = DriverDSL.startWebserver(executorService, handle, debugPort)
+        val processFuture = DriverDSL.startWebserver(executorService, handle, debugPort, maximumHeapSize)
         registerProcess(processFuture)
         return processFuture.map { queryWebserver(handle, it) }
     }
@@ -861,7 +866,7 @@ class DriverDSL(
 
     override fun baseDirectory(nodeName: String): Path = baseDirectory(CordaX500Name.parse(nodeName))
 
-    override fun startDedicatedNetworkMapService(startInProcess: Boolean?): CordaFuture<NodeHandle> {
+    override fun startDedicatedNetworkMapService(startInProcess: Boolean?, maximumHeapSize: String): CordaFuture<NodeHandle> {
         val webAddress = portAllocation.nextHostAndPort()
         val rpcAddress = portAllocation.nextHostAndPort()
         val networkMapLegalName = networkMapStartStrategy.legalName
@@ -880,10 +885,10 @@ class DriverDSL(
                         "extraAdvertisedServiceIds" to listOf(ServiceInfo(NetworkMapService.type).toString())
                 )
         )
-        return startNodeInternal(config, webAddress, startInProcess)
+        return startNodeInternal(config, webAddress, startInProcess, maximumHeapSize)
     }
 
-    private fun startNodeInternal(config: Config, webAddress: NetworkHostAndPort, startInProcess: Boolean?): CordaFuture<NodeHandle> {
+    private fun startNodeInternal(config: Config, webAddress: NetworkHostAndPort, startInProcess: Boolean?, maximumHeapSize: String): CordaFuture<NodeHandle> {
         val nodeConfiguration = config.parseAs<FullNodeConfiguration>()
         if (startInProcess ?: startNodesInProcess) {
             val nodeAndThreadFuture = startInProcessNode(executorService, nodeConfiguration, config)
@@ -904,7 +909,7 @@ class DriverDSL(
             }
         } else {
             val debugPort = if (isDebug) debugPortAllocation.nextPort() else null
-            val processFuture = startOutOfProcessNode(executorService, nodeConfiguration, config, quasarJarPath, debugPort, systemProperties, packagesToScanString.joinToString(","))
+            val processFuture = startOutOfProcessNode(executorService, nodeConfiguration, config, quasarJarPath, debugPort, systemProperties, packagesToScanString.joinToString(","), maximumHeapSize)
             registerProcess(processFuture)
             return processFuture.flatMap { process ->
                 val processDeathFuture = poll(executorService, "process death") {
@@ -969,7 +974,8 @@ class DriverDSL(
                 quasarJarPath: String,
                 debugPort: Int?,
                 overriddenSystemProperties: Map<String, String>,
-                packagesToScanString: String
+                packagesToScanString: String,
+                maximumHeapSize: String
         ): CordaFuture<Process> {
             val processFuture = executorService.fork {
                 log.info("Starting out-of-process Node ${nodeConf.myLegalName.organisation}")
@@ -998,7 +1004,8 @@ class DriverDSL(
                         jdwpPort = debugPort,
                         extraJvmArguments = extraJvmArguments,
                         errorLogPath = nodeConf.baseDirectory / NodeStartup.LOGS_DIRECTORY_NAME / "error.log",
-                        workingDirectory = nodeConf.baseDirectory
+                        workingDirectory = nodeConf.baseDirectory,
+                        maximumHeapSize = maximumHeapSize
                 )
             }
             return processFuture.flatMap { process ->
@@ -1009,7 +1016,8 @@ class DriverDSL(
         private fun startWebserver(
                 executorService: ScheduledExecutorService,
                 handle: NodeHandle,
-                debugPort: Int?
+                debugPort: Int?,
+                maximumHeapSize: String
         ): CordaFuture<Process> {
             return executorService.fork {
                 val className = "net.corda.webserver.WebServer"
@@ -1021,7 +1029,9 @@ class DriverDSL(
                                 "-Dname=node-${handle.configuration.p2pAddress}-webserver",
                                 "-Djava.io.tmpdir=${System.getProperty("java.io.tmpdir")}" // Inherit from parent process
                         ),
-                        errorLogPath = Paths.get("error.$className.log")
+                        errorLogPath = Paths.get("error.$className.log"),
+                        workingDirectory = null,
+                        maximumHeapSize = maximumHeapSize
                 )
             }.flatMap { process -> addressMustBeBoundFuture(executorService, handle.webAddress, process).map { process } }
         }
