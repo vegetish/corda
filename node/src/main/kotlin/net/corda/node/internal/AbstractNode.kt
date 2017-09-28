@@ -234,18 +234,30 @@ abstract class AbstractNode(open val configuration: NodeConfiguration,
     private class ServiceInstantiationException(cause: Throwable?) : Exception(cause)
 
     private fun installCordaServices() {
-        cordappProvider.cordapps.flatMap { it.services }.forEach {
-            try {
-                installCordaService(it)
-            } catch (e: NoSuchMethodException) {
-                log.error("${it.name}, as a Corda service, must have a constructor with a single parameter of type " +
-                        ServiceHub::class.java.name)
-            } catch (e: ServiceInstantiationException) {
-                log.error("Corda service ${it.name} failed to instantiate", e.cause)
-            } catch (e: Exception) {
-                log.error("Unable to install Corda service ${it.name}", e)
-            }
-        }
+        cordappProvider.cordapps
+                .flatMap { it.services }
+                .filter { isServiceEnabled(it) }
+                .forEach {
+                    try {
+                        installCordaService(it)
+                    } catch (e: NoSuchMethodException) {
+                        log.error("${it.name}, as a Corda service, must have a constructor with a single parameter of type " +
+                                ServiceHub::class.java.name)
+                    } catch (e: ServiceInstantiationException) {
+                        log.error("Corda service ${it.name} failed to instantiate", e.cause)
+                    } catch (e: Exception) {
+                        log.error("Unable to install Corda service ${it.name}", e)
+                    }
+                }
+    }
+
+    /**
+     * If the service defines a type, it will only be loaded if the type is specified in [advertisedServices].
+     * This is mainly used when choosing between custom and built-in notary service implementations.
+     */
+    private fun isServiceEnabled(serviceClass: Class<*>): Boolean {
+        val serviceType = serviceClass.methods.firstOrNull { it.name == "getType" }?.invoke(null)
+        return serviceType == null || advertisedServices.any { it.type == serviceType }
     }
 
     /**
