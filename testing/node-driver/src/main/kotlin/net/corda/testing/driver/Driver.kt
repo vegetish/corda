@@ -53,6 +53,7 @@ import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Supplier
 import kotlin.concurrent.thread
 
 
@@ -516,7 +517,7 @@ class ShutdownManager(private val executorService: ExecutorService) {
                 registeredShutdowns
             }
         }
-        val shutdowns = shutdownActionFutures.map { Try.on { it.getOrThrow(1.seconds) } }
+        val shutdowns = shutdownActionFutures.map { Try.on(Supplier { it.getOrThrow(1.seconds) }) }
         shutdowns.reversed().forEach {
             when (it) {
                 is Try.Success ->

@@ -7,6 +7,7 @@ import net.corda.core.internal.castIfPossible
 import net.corda.core.internal.uncheckedCast
 import net.corda.core.serialization.CordaSerializable
 import java.util.*
+import java.util.function.Function
 import java.util.function.Predicate
 
 /**
@@ -168,12 +169,12 @@ data class LedgerTransaction(
      * currency field: the resulting list can then be iterated over to perform the per-currency calculation.
      */
     // DOCSTART 2
-    fun <T : ContractState, K : Any> groupStates(ofType: Class<T>, selector: (T) -> K): List<InOutGroup<T, K>> {
+    fun <T : ContractState, K : Any> groupStates(ofType: Class<T>, selector: Function<T, K>): List<InOutGroup<T, K>> {
         val inputs = inputsOfType(ofType)
         val outputs = outputsOfType(ofType)
 
-        val inGroups: Map<K, List<T>> = inputs.groupBy(selector)
-        val outGroups: Map<K, List<T>> = outputs.groupBy(selector)
+        val inGroups: Map<K, List<T>> = inputs.groupBy { selector.apply(it) }
+        val outGroups: Map<K, List<T>> = outputs.groupBy { selector.apply(it) }
 
         val result = ArrayList<InOutGroup<T, K>>()
 
@@ -190,7 +191,7 @@ data class LedgerTransaction(
 
     /** See the documentation for the reflection-based version of [groupStates] */
     inline fun <reified T : ContractState, K : Any> groupStates(noinline selector: (T) -> K): List<InOutGroup<T, K>> {
-        return groupStates(T::class.java, selector)
+        return groupStates(T::class.java, Function { selector(it) })
     }
 
     /** Utilities for contract writers to incorporate into their logic. */
