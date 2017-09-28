@@ -118,7 +118,8 @@ data class SpringBootDriverDSL(
                             "--corda.host=${handle.configuration.rpcAddress}",
                             "--corda.user=${handle.configuration.rpcUsers.first().username}",
                             "--corda.password=${handle.configuration.rpcUsers.first().password}"
-                            )
+                            ),
+                    maximumHeapSize = null
             )
         }.flatMap { process -> addressMustBeBoundFuture(driverDSL.executorService, handle.webAddress, process).map { process } }
     }
