@@ -5,9 +5,9 @@ import net.corda.core.identity.AnonymousParty
 import net.corda.core.identity.Party
 import net.corda.core.utilities.getOrThrow
 import net.corda.testing.ALICE
+import net.corda.testing.ALICE_NAME
 import net.corda.testing.BOB
-import net.corda.testing.DUMMY_NOTARY
-import net.corda.testing.chooseIdentity
+import net.corda.testing.BOB_NAME
 import net.corda.testing.node.MockNetwork
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -25,8 +25,8 @@ class SwapIdentitiesFlowTests {
         val notaryNode = mockNet.createNotaryNode()
         val aliceNode = mockNet.createPartyNode(ALICE.name)
         val bobNode = mockNet.createPartyNode(BOB.name)
-        val alice: Party = aliceNode.services.myInfo.chooseIdentity()
-        val bob: Party = bobNode.services.myInfo.chooseIdentity()
+        val alice = notaryNode.services.networkMapCache.getPeerByLegalName(ALICE_NAME)!!
+        val bob = notaryNode.services.networkMapCache.getPeerByLegalName(BOB_NAME)!!
 
         // Run the flows
         val requesterFlow = aliceNode.services.startFlow(SwapIdentitiesFlow(bob))
