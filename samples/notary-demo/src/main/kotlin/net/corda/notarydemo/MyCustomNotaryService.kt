@@ -24,6 +24,7 @@ import java.security.SignatureException
  *
  * Note that at present only a single-node notary service can be customised.
  */
+// TODO: Rework the mechanism for enabling custom notaries once ServiceType is deprecated
 // START 1
 @CordaService
 class MyCustomValidatingNotaryService(override val services: ServiceHub, override val notaryIdentityKey: PublicKey) : TrustedAuthorityNotaryService() {

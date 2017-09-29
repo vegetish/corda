@@ -1,7 +1,7 @@
 .. highlight:: kotlin
 
-Writing a custom notary service
-===============================
+Writing a custom notary service (experimental)
+==============================================
 
 .. warning:: Customising a notary service is an advanced feature and not recommended for most use-cases. Currently,
    customising Raft or BFT notaries is not yet fully supported. If you want to write your own Raft notary you will have to
@@ -12,7 +12,7 @@ with ``@CordaService``. The Corda node scans for any class with this annotation 
 The requirements for a custom notary service are:
 
    - Provide a constructor with two parameters of types ``ServiceHub`` and ``PublicKey``.
-   - Provide a static field ``type``, which denotes the notary service type.
+   - Provide a static field ``type``, which denotes the notary ``ServiceType``.
 
 .. literalinclude:: ../../samples/notary-demo/src/main/kotlin/net/corda/notarydemo/MyCustomNotaryService.kt
    :language: kotlin
@@ -33,3 +33,6 @@ To ensure the custom notary is installed and started by the node, specify the ``
 .. parsed-literal::
 
     extraAdvertisedServiceIds : ["corda.notary.validating.custom"]
+
+.. warning:: The mechanism for enabling a custom notary service will change in the future and the static ``type`` field
+   requirement will be deprecated.
