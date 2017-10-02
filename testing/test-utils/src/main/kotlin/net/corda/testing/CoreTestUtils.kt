@@ -13,6 +13,7 @@ import net.corda.core.internal.cert
 import net.corda.core.node.NodeInfo
 import net.corda.core.node.ServiceHub
 import net.corda.core.node.services.IdentityService
+import net.corda.core.node.services.NetworkMapCache
 import net.corda.core.utilities.NetworkHostAndPort
 import net.corda.core.utilities.OpaqueBytes
 import net.corda.core.utilities.loggerFor
@@ -168,6 +169,10 @@ fun NodeInfo.chooseIdentityAndCert(): PartyAndCertificate = legalIdentitiesAndCe
 fun NodeInfo.chooseIdentity(): Party = chooseIdentityAndCert().party
 /** Returns the identity of the first notary found on the network */
 fun ServiceHub.getDefaultNotary(): Party = networkMapCache.notaryIdentities.first()
+
+fun NetworkMapCache.getPeerCertificateByLegalName(name: CordaX500Name): PartyAndCertificate? {
+    return getNodeByLegalName(name)!!.legalIdentitiesAndCerts.single { it.name == name }
+}
 
 /**
  * Set the package to scan for cordapps - this overrides the default behaviour of scanning the cordapps directory
