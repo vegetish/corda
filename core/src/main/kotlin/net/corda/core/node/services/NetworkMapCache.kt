@@ -28,6 +28,7 @@ interface NetworkMapCache {
         data class Modified(override val node: NodeInfo, val previousNode: NodeInfo) : MapChange()
     }
 
+    // DOCSTART 1
     /**
      * A list of notary services available on the network.
      *
@@ -35,6 +36,8 @@ interface NetworkMapCache {
      */
     // TODO this list will be taken from NetworkParameters distributed by NetworkMap.
     val notaryIdentities: List<Party>
+    // DOCEND 1
+
     /** Tracks changes to the network map cache. */
     val changed: Observable<MapChange>
     /** Future to track completion of the NetworkMapService registration. */
@@ -50,6 +53,8 @@ interface NetworkMapCache {
      * Look up the node info for a specific party. Will attempt to de-anonymise the party if applicable; if the party
      * is anonymised and the well known party cannot be resolved, it is impossible ot identify the node and therefore this
      * returns null.
+     * Notice that when there are more than one node for a given party (in case of distributed services) first service node
+     * found will be returned. See also: [getNodesByLegalIdentityKey].
      *
      * @param party party to retrieve node information for.
      * @return the node for the identity, or null if the node could not be found. This does not necessarily mean there is
@@ -57,7 +62,11 @@ interface NetworkMapCache {
      */
     fun getNodeByLegalIdentity(party: AbstractParty): NodeInfo?
 
-    /** Look up the node info for a legal name. */
+    /**
+     * Look up the node info for a legal name.
+     * Notice that when there are more than one node for a given name (in case of distributed services) first service node
+     * found will be returned.
+     */
     fun getNodeByLegalName(name: CordaX500Name): NodeInfo?
 
     /** Look up the node info for a host and port. */
@@ -81,8 +90,10 @@ interface NetworkMapCache {
     /** Returns information about the party, which may be a specific node or a service */
     fun getPartyInfo(party: Party): PartyInfo?
 
+    // DOCSTART 2
     /** Gets a notary identity by the given name. */
     fun getNotary(name: CordaX500Name): Party? = notaryIdentities.firstOrNull { it.name == name }
+    // DOCEND 2
 
     /** Checks whether a given party is an advertised notary identity. */
     fun isNotary(party: Party): Boolean = party in notaryIdentities

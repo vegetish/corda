@@ -12,6 +12,7 @@ import net.corda.core.contracts.CommandData
 import net.corda.core.contracts.LinearState
 import net.corda.core.contracts.StateAndRef
 import net.corda.core.contracts.TokenizableAssetInfo
+import net.corda.core.flows.FlowException
 import net.corda.core.identity.Party
 import net.corda.core.serialization.CordaSerializable
 import net.corda.core.transactions.TransactionBuilder
@@ -28,12 +29,16 @@ import java.util.*
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// DOCSTART 1
 /** A [FixOf] identifies the question side of a fix: what day, tenor and type of fix ("LIBOR", "EURIBOR" etc) */
 @CordaSerializable
 data class FixOf(val name: String, val forDay: LocalDate, val ofTenor: Tenor)
+// DOCEND 1
 
+// DOCSTART 2
 /** A [Fix] represents a named interest rate, on a given day, for a given duration. It can be embedded in a tx. */
 data class Fix(val of: FixOf, val value: BigDecimal) : CommandData
+// DOCEND 2
 
 /** Represents a textual expression of e.g. a formula */
 @CordaSerializable
@@ -199,7 +204,7 @@ enum class Frequency(val annualCompoundCount: Int, val offset: LocalDate.(Long) 
 @CordaSerializable
 open class BusinessCalendar (val holidayDates: List<LocalDate>) {
     @CordaSerializable
-    class UnknownCalendar(name: String) : Exception("$name not found")
+    class UnknownCalendar(name: String) : FlowException("$name not found")
 
     companion object {
         val calendars = listOf("London", "NewYork")

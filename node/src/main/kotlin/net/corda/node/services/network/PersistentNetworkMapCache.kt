@@ -21,7 +21,7 @@ import net.corda.core.utilities.NetworkHostAndPort
 import net.corda.core.utilities.loggerFor
 import net.corda.core.utilities.parsePublicKeyBase58
 import net.corda.core.utilities.toBase58String
-import net.corda.node.services.api.NetworkCacheError
+import net.corda.node.services.api.NetworkCacheException
 import net.corda.node.services.api.NetworkMapCacheInternal
 import net.corda.node.services.api.ServiceHubInternal
 import net.corda.node.services.messaging.MessagingService
@@ -112,7 +112,7 @@ open class PersistentNetworkMapCache(private val serviceHub: ServiceHubInternal)
     override fun getNodeByLegalIdentity(party: AbstractParty): NodeInfo? {
         val wellKnownParty = serviceHub.identityService.wellKnownPartyFromAnonymous(party)
         return wellKnownParty?.let {
-            getNodesByLegalIdentityKey(it.owningKey).singleOrNull()
+            getNodesByLegalIdentityKey(it.owningKey).firstOrNull()
         }
     }
 
@@ -135,7 +135,7 @@ open class PersistentNetworkMapCache(private val serviceHub: ServiceHubInternal)
                             data = NetworkMapService.UpdateAcknowledge(req.mapVersion, network.myAddress).serialize().bytes)
                     network.send(ackMessage, req.replyTo)
                     processUpdatePush(req)
-                } catch (e: NodeMapError) {
+                } catch (e: NodeMapException) {
                     logger.warn("Failure during node map update due to bad update: ${e.javaClass.name}")
                 } catch (e: Exception) {
                     logger.error("Exception processing update from network map service", e)
@@ -157,23 +157,30 @@ open class PersistentNetworkMapCache(private val serviceHub: ServiceHubInternal)
     }
 
     override fun addNode(node: NodeInfo) {
+        logger.info("Adding node with info: $node")
         synchronized(_changed) {
             val previousNode = registeredNodes.put(node.legalIdentities.first().owningKey, node) // TODO hack... we left the first one as special one
             if (previousNode == null) {
+                logger.info("No previous node found")
                 serviceHub.database.transaction {
                     updateInfoDB(node)
                     changePublisher.onNext(MapChange.Added(node))
                 }
             } else if (previousNode != node) {
+                logger.info("Previous node was found as: $previousNode")
                 serviceHub.database.transaction {
                     updateInfoDB(node)
                     changePublisher.onNext(MapChange.Modified(node, previousNode))
                 }
+            } else {
+                logger.info("Previous node was identical to incoming one - doing nothing")
             }
         }
+        logger.info("Done adding node with info: $node")
     }
 
     override fun removeNode(node: NodeInfo) {
+        logger.info("Removing node with info: $node")
         synchronized(_changed) {
             registeredNodes.remove(node.legalIdentities.first().owningKey)
             serviceHub.database.transaction {
@@ -181,6 +188,7 @@ open class PersistentNetworkMapCache(private val serviceHub: ServiceHubInternal)
                 changePublisher.onNext(MapChange.Removed(node))
             }
         }
+        logger.info("Done removing node with info: $node")
     }
 
     /**
@@ -194,7 +202,7 @@ open class PersistentNetworkMapCache(private val serviceHub: ServiceHubInternal)
         val address = getPartyInfo(mapParty)?.let { network.getAddressOfParty(it) } ?:
                 throw IllegalArgumentException("Can't deregister for updates, don't know the party: $mapParty")
         val future = network.sendRequest<SubscribeResponse>(NetworkMapService.SUBSCRIPTION_TOPIC, req, address).map {
-            if (it.confirmed) Unit else throw NetworkCacheError.DeregistrationFailed()
+            if (it.confirmed) Unit else throw NetworkCacheException.DeregistrationFailed()
         }
         _registrationFuture.captureLater(future.map { null })
         return future
@@ -205,7 +213,7 @@ open class PersistentNetworkMapCache(private val serviceHub: ServiceHubInternal)
             val reg = req.wireReg.verified()
             processRegistration(reg)
         } catch (e: SignatureException) {
-            throw NodeMapError.InvalidSignature()
+            throw NodeMapException.InvalidSignature()
         }
     }
 

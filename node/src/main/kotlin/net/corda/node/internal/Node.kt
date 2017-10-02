@@ -1,6 +1,7 @@
 package net.corda.node.internal
 
 import com.codahale.metrics.JmxReporter
+import net.corda.core.CordaException
 import net.corda.core.concurrent.CordaFuture
 import net.corda.core.identity.CordaX500Name
 import net.corda.core.identity.PartyAndCertificate
@@ -14,6 +15,7 @@ import net.corda.core.node.ServiceHub
 import net.corda.core.serialization.SerializationDefaults
 import net.corda.core.utilities.*
 import net.corda.node.VersionInfo
+import net.corda.node.internal.cordapp.CordappProviderImpl
 import net.corda.node.serialization.KryoServerSerializationScheme
 import net.corda.node.serialization.NodeClock
 import net.corda.node.services.RPCUserService
@@ -46,6 +48,7 @@ import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.time.Clock
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 import javax.management.ObjectName
 import kotlin.system.exitProcess
 
@@ -82,12 +85,16 @@ open class Node(override val configuration: FullNodeConfiguration,
         private fun createClock(configuration: FullNodeConfiguration): Clock {
             return if (configuration.useTestClock) TestClock() else NodeClock()
         }
+
+        private val sameVmNodeCounter = AtomicInteger()
     }
 
     override val log: Logger get() = logger
     override val platformVersion: Int get() = versionInfo.platformVersion
     override val networkMapAddress: NetworkMapAddress? get() = configuration.networkMapService?.address?.let(::NetworkMapAddress)
     override fun makeTransactionVerifierService() = (network as NodeMessagingClient).verifierService
+
+    private val sameVmNodeNumber = sameVmNodeCounter.incrementAndGet() // Under normal (non-test execution) it will always be "1"
 
     // DISCUSSION
     //
@@ -126,7 +133,7 @@ open class Node(override val configuration: FullNodeConfiguration,
     //
     // The primary work done by the server thread is execution of flow logics, and related
     // serialisation/deserialisation work.
-    override val serverThread = AffinityExecutor.ServiceAffinityExecutor("Node thread", 1)
+    override val serverThread = AffinityExecutor.ServiceAffinityExecutor("Node thread-$sameVmNodeNumber", 1)
 
     private var messageBroker: ArtemisMessagingServer? = null
 
@@ -340,14 +347,15 @@ open class Node(override val configuration: FullNodeConfiguration,
     }
 
     private fun initialiseSerialization() {
+        val classloader = cordappLoader.appClassLoader
         SerializationDefaults.SERIALIZATION_FACTORY = SerializationFactoryImpl().apply {
             registerScheme(KryoServerSerializationScheme())
             registerScheme(AMQPServerSerializationScheme())
         }
-        SerializationDefaults.P2P_CONTEXT = KRYO_P2P_CONTEXT
-        SerializationDefaults.RPC_SERVER_CONTEXT = KRYO_RPC_SERVER_CONTEXT
-        SerializationDefaults.STORAGE_CONTEXT = KRYO_STORAGE_CONTEXT
-        SerializationDefaults.CHECKPOINT_CONTEXT = KRYO_CHECKPOINT_CONTEXT
+        SerializationDefaults.P2P_CONTEXT = KRYO_P2P_CONTEXT.withClassLoader(classloader)
+        SerializationDefaults.RPC_SERVER_CONTEXT = KRYO_RPC_SERVER_CONTEXT.withClassLoader(classloader)
+        SerializationDefaults.STORAGE_CONTEXT = KRYO_STORAGE_CONTEXT.withClassLoader(classloader)
+        SerializationDefaults.CHECKPOINT_CONTEXT = KRYO_CHECKPOINT_CONTEXT.withClassLoader(classloader)
     }
 
     /** Starts a blocking event loop for message dispatch. */
@@ -377,6 +385,6 @@ open class Node(override val configuration: FullNodeConfiguration,
     }
 }
 
-class ConfigurationException(message: String) : Exception(message)
+class ConfigurationException(message: String) : CordaException(message)
 
 data class NetworkMapInfo(val address: NetworkHostAndPort, val legalName: CordaX500Name)
