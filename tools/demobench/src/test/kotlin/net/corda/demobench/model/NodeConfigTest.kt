@@ -54,7 +54,7 @@ class NodeConfigTest {
     @Test
     fun `test plugin directory`() {
         val config = createConfig(legalName = myLegalName)
-        assertEquals(baseDir / "myname" / CordappLoader.CORDAPPS_DIR_NAME, config.pluginDir)
+        assertEquals(baseDir / "myname" / CordappLoader.CORDAPPS_DIR_NAME, config.cordappsDir)
     }
 
     @Test
@@ -249,7 +249,7 @@ class NodeConfigTest {
         val moved = config.moveTo(elsewhere)
         assertEquals(elsewhere / "myname", moved.nodeDir)
         assertEquals(elsewhere / "myname-explorer", moved.explorerDir)
-        assertEquals(elsewhere / "myname" / CordappLoader.CORDAPPS_DIR_NAME, moved.pluginDir)
+        assertEquals(elsewhere / "myname" / CordappLoader.CORDAPPS_DIR_NAME, moved.cordappsDir)
     }
 
     private fun createConfig(

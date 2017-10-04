@@ -18,7 +18,7 @@ class NodeConfig(
         val extraServices: MutableList<String> = mutableListOf(),
         val users: List<User> = listOf(defaultUser),
         var networkMap: NetworkMapConfig? = null
-) : NetworkMapConfig(legalName, p2pPort), HasPlugins {
+) : NetworkMapConfig(legalName, p2pPort), HasCordapps {
 
     companion object {
         val CORDAPP_DIR_NAME = "cordapps"
@@ -28,7 +28,7 @@ class NodeConfig(
 
     val nearestCity: String = legalName.locality
     val nodeDir: Path = baseDir.resolve(key)
-    override val pluginDir: Path = nodeDir.resolve(CORDAPP_DIR_NAME)
+    override val cordappsDir: Path = nodeDir.resolve(CORDAPP_DIR_NAME)
     val explorerDir: Path = baseDir.resolve("$key-explorer")
 
     var state: NodeState = NodeState.STARTING
@@ -64,10 +64,10 @@ class NodeConfig(
         baseDir, legalName, p2pPort, rpcPort, webPort, h2Port, extraServices, users, networkMap
     )
 
-    fun install(plugins: Collection<Path>) {
-        if (plugins.isNotEmpty() && pluginDir.toFile().forceDirectory()) {
-            plugins.forEach {
-                Files.copy(it, pluginDir.resolve(it.fileName.toString()), StandardCopyOption.REPLACE_EXISTING)
+    fun install(cordapps: Collection<Path>) {
+        if (cordapps.isNotEmpty() && cordappsDir.toFile().forceDirectory()) {
+            cordapps.forEach {
+                Files.copy(it, cordappsDir.resolve(it.fileName.toString()), StandardCopyOption.REPLACE_EXISTING)
             }
         }
     }

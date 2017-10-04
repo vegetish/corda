@@ -67,9 +67,9 @@ class InstallFactory : Controller() {
  * Wraps the configuration information for a Node
  * which isn't ready to be instantiated yet.
  */
-class InstallConfig internal constructor(val baseDir: Path, private val config: NodeConfig) : HasPlugins {
+class InstallConfig internal constructor(val baseDir: Path, private val config: NodeConfig) : HasCordapps {
     val key = config.key
-    override val pluginDir: Path = baseDir.resolve(NodeConfig.CORDAPP_DIR_NAME)
+    override val cordappsDir: Path = baseDir.resolve(NodeConfig.CORDAPP_DIR_NAME)
 
     fun deleteBaseDir(): Boolean = baseDir.toFile().deleteRecursively()
     fun installTo(installDir: Path) = config.moveTo(installDir)
