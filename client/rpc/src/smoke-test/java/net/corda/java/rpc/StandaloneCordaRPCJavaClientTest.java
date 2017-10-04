@@ -77,9 +77,9 @@ public class StandaloneCordaRPCJavaClientTest {
     }
 
     private void copyFinanceCordapp() {
-        Path pluginsDir = (factory.baseDirectory(notaryConfig).resolve("cordapps"));
+        Path cordappsDir = (factory.baseDirectory(notaryConfig).resolve("cordapps"));
         try {
-            Files.createDirectories(pluginsDir);
+            Files.createDirectories(cordappsDir);
         } catch (IOException ex) {
             fail("Failed to create directories");
         }
@@ -87,7 +87,7 @@ public class StandaloneCordaRPCJavaClientTest {
             paths.forEach(file -> {
                 if (file.toString().contains("corda-finance")) {
                     try {
-                        Files.copy(file, pluginsDir.resolve(file.getFileName()));
+                        Files.copy(file, cordappsDir.resolve(file.getFileName()));
                     } catch (IOException ex) {
                         fail("Failed to copy finance jar");
                     }

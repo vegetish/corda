@@ -26,7 +26,7 @@ class ProfileController : Controller() {
     private val jvm by inject<JVMConfig>()
     private val baseDir: Path = jvm.dataHome
     private val nodeController by inject<NodeController>()
-    private val pluginController by inject<CordappController>()
+    private val cordappController by inject<CordappController>()
     private val installFactory by inject<InstallFactory>()
     private val chooser = FileChooser()
 
@@ -60,10 +60,10 @@ class ProfileController : Controller() {
                     log.info("Wrote: $file")
 
                     // Write all of the non-built-in plugins.
-                    val pluginDir = Files.createDirectory(nodeDir.resolve(NodeConfig.CORDAPP_DIR_NAME))
-                    pluginController.useCordappsFor(config).forEach {
-                        val plugin = Files.copy(it, pluginDir.resolve(it.fileName.toString()))
-                        log.info("Wrote: $plugin")
+                    val cordappDir = Files.createDirectory(nodeDir.resolve(NodeConfig.CORDAPP_DIR_NAME))
+                    cordappController.useCordappsFor(config).forEach {
+                        val cordapp = Files.copy(it, cordappDir.resolve(it.fileName.toString()))
+                        log.info("Wrote: $cordapp")
                     }
                 }
             }
@@ -116,15 +116,15 @@ class ProfileController : Controller() {
             // and copy them to a temporary location.
             StreamSupport.stream(fs.rootDirectories.spliterator(), false)
                     .flatMap { Files.find(it, 3, BiPredicate { p, attr -> p.inCordappsDir() && p.isCordapp() && attr.isRegularFile }) }
-                    .forEach { plugin ->
-                        val config = nodeIndex[plugin.getName(0).toString()] ?: return@forEach
+                    .forEach { cordapp ->
+                        val config = nodeIndex[cordapp.getName(0).toString()] ?: return@forEach
 
                         try {
-                            val pluginDir = Files.createDirectories(config.cordappsDir)
-                            Files.copy(plugin, pluginDir.resolve(plugin.fileName.toString()))
-                            log.info("Loaded: $plugin")
+                            val cordappDir = Files.createDirectories(config.cordappsDir)
+                            Files.copy(cordapp, cordappDir.resolve(cordapp.fileName.toString()))
+                            log.info("Loaded: $cordapp")
                         } catch (e: Exception) {
-                            log.log(Level.SEVERE, "Failed to extract '$plugin': ${e.message}", e)
+                            log.log(Level.SEVERE, "Failed to extract '$cordapp': ${e.message}", e)
                             configs.forEach { c -> c.deleteBaseDir() }
                             throw e
                         }

@@ -40,12 +40,12 @@ class CordappSmokeTest {
 
     @Test
     fun `FlowContent appName returns the filename of the CorDapp jar`() {
-        val pluginsDir = (factory.baseDirectory(aliceConfig) / CordappLoader.CORDAPPS_DIR_NAME).createDirectories()
+        val cordappsDir = (factory.baseDirectory(aliceConfig) / CordappLoader.CORDAPPS_DIR_NAME).createDirectories()
         // Find the jar file for the smoke tests of this module
         val selfCordapp = Paths.get("build", "libs").list {
             it.filter { "-smokeTests" in it.toString() }.toList().single()
         }
-        selfCordapp.copyToDirectory(pluginsDir)
+        selfCordapp.copyToDirectory(cordappsDir)
 
         factory.create(aliceConfig).use { alice ->
             alice.connect().use { connectionToAlice ->
@@ -60,7 +60,7 @@ class CordappSmokeTest {
     }
 
     @Test
-    fun `empty plugins directory`() {
+    fun `empty cordapps directory`() {
         (factory.baseDirectory(aliceConfig) / CordappLoader.CORDAPPS_DIR_NAME).createDirectories()
         factory.create(aliceConfig).close()
     }

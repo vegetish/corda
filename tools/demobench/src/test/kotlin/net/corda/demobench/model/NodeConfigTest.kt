@@ -52,7 +52,7 @@ class NodeConfigTest {
     }
 
     @Test
-    fun `test plugin directory`() {
+    fun `test cordapp directory`() {
         val config = createConfig(legalName = myLegalName)
         assertEquals(baseDir / "myname" / CordappLoader.CORDAPPS_DIR_NAME, config.cordappsDir)
     }

@@ -165,9 +165,9 @@ class NodeController(check: atRuntime = ::checkExists) : Controller() {
         val installed = config.installTo(baseDir)
 
         cordappController.useCordappsFor(config).forEach {
-            val pluginDir = Files.createDirectories(installed.cordappsDir)
-            val plugin = Files.copy(it, pluginDir.resolve(it.fileName.toString()))
-            log.info("Installed: $plugin")
+            val cordappsDir = Files.createDirectories(installed.cordappsDir)
+            val cordapp = Files.copy(it, cordappsDir.resolve(it.fileName.toString()))
+            log.info("Installed: $cordapp")
         }
 
         if (!config.deleteBaseDir()) {
