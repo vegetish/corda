@@ -58,6 +58,7 @@ dependencies {
     compile "org.apache.logging.log4j:log4j-slf4j-impl:$log4j_version"
     compile "org.apache.logging.log4j:log4j-core:$log4j_version"
     compile "com.typesafe:config:$typesafe_config_version"
+    compile "net.corda.plugins:cordform-common:$gradle_plugins_version"
 
     // FontAwesomeFX: icons in the form of a font.
     compile "de.jensd:fontawesomefx-fontawesome:4.7.0-5"
