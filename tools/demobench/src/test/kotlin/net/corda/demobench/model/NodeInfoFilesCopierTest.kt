@@ -41,12 +41,12 @@ class NodeInfoFilesCopierTest {
 
     private fun nodeDir(nodeBaseDir : String) = rootPath.resolve(nodeBaseDir).resolve(ORGANIZATION.toLowerCase())
 
-    val node1Config by lazy { createConfig(NODE_1_PATH) }
-    val node2Config by lazy { createConfig(NODE_2_PATH) }
-    val node1RootPath by lazy { nodeDir(NODE_1_PATH) }
-    val node2RootPath by lazy { nodeDir(NODE_2_PATH) }
-    val node1AdditionalNodeInfoPath by lazy { node1RootPath.resolve(CordformNode.NODE_INFO_DIRECTORY) }
-    val node2AdditionalNodeInfoPath by lazy { node2RootPath.resolve(CordformNode.NODE_INFO_DIRECTORY) }
+    private val node1Config by lazy { createConfig(NODE_1_PATH) }
+    private val node2Config by lazy { createConfig(NODE_2_PATH) }
+    private val node1RootPath by lazy { nodeDir(NODE_1_PATH) }
+    private val node2RootPath by lazy { nodeDir(NODE_2_PATH) }
+    private val node1AdditionalNodeInfoPath by lazy { node1RootPath.resolve(CordformNode.NODE_INFO_DIRECTORY) }
+    private val node2AdditionalNodeInfoPath by lazy { node2RootPath.resolve(CordformNode.NODE_INFO_DIRECTORY) }
 
     @Test
     fun `files created before a node is started are copied to that node`() {
