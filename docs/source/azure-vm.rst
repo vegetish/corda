@@ -97,7 +97,7 @@ Loading the Yo! CordDapp on your Corda nodes lets you send simple Yo! messages t
 
 * **Loading the Yo! CorDapp onto your nodes**
 
-The nodes you will use to send and receive Yo messages require the Yo! CorDapp jar file to be saved to their plugins directory.
+The nodes you will use to send and receive Yo messages require the Yo! CorDapp jar file to be saved to their cordapps directory.
 
 Connect to one of your Corda nodes (make sure this is not the Notary node) using an SSH client of your choice (e.g. Putty) and log into the virtual machine using the public IP address and your SSH key or username / password combination you defined in Step 1 of the Azure build process. Type the following command:
 

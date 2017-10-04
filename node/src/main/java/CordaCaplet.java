@@ -24,7 +24,7 @@ public class CordaCaplet extends Capsule {
         // defined as public static final fields on the Capsule class, therefore referential equality is safe.
         if (ATTR_APP_CLASS_PATH == attr) {
             T cp = super.attribute(attr);
-            return (T) augmentClasspath((List<Path>) cp, "plugins");
+            return (T) augmentClasspath((List<Path>) cp, "cordapps");
         }
         return super.attribute(attr);
     }

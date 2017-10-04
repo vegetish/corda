@@ -113,7 +113,7 @@ class AttachmentLoadingTests : TestDependencyInjectionBase() {
 
     private fun DriverDSLExposedInterface.installIsolatedCordappTo(nodeName: CordaX500Name) {
         // Copy the app jar to the first node. The second won't have it.
-        val path = (baseDirectory(nodeName.toString()) / "plugins").createDirectories() / "isolated.jar"
+        val path = (baseDirectory(nodeName.toString()) / CordappLoader.CORDAPPS_DIR_NAME).createDirectories() / "isolated.jar"
         logger.info("Installing isolated jar to $path")
         isolatedJAR.openStream().buffered().use { input ->
             Files.newOutputStream(path).buffered().use { output ->

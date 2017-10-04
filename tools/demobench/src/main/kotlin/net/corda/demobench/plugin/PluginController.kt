@@ -57,4 +57,4 @@ class PluginController : Controller() {
 }
 
 fun Path.isPlugin(): Boolean = Files.isReadable(this) && this.fileName.toString().endsWith(".jar")
-fun Path.inPluginsDir(): Boolean = (this.parent != null) && this.parent.endsWith("plugins/")
+fun Path.inPluginsDir(): Boolean = (this.parent != null) && this.parent.endsWith("cordapps/")
