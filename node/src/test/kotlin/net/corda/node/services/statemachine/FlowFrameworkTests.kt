@@ -264,11 +264,7 @@ class FlowFrameworkTests {
 
     @Test
     fun `sending to multiple parties`() {
-<<<<<<< 4c6e8da73e40f300d5887f66edc32deaf8c3fb9f
         val node3 = mockNet.createNode()
-=======
-        val node3 = mockNet.createNode(aliceNode.network.myAddress)
->>>>>>> Move away from chooseIdentity in FlowFrameworkTests
         mockNet.runNetwork()
         bobNode.registerFlowFactory(SendFlow::class) { InitiatedReceiveFlow(it).nonTerminating() }
         node3.registerFlowFactory(SendFlow::class) { InitiatedReceiveFlow(it).nonTerminating() }
@@ -300,11 +296,7 @@ class FlowFrameworkTests {
 
     @Test
     fun `receiving from multiple parties`() {
-<<<<<<< 4c6e8da73e40f300d5887f66edc32deaf8c3fb9f
         val node3 = mockNet.createNode()
-=======
-        val node3 = mockNet.createNode(aliceNode.network.myAddress)
->>>>>>> Move away from chooseIdentity in FlowFrameworkTests
         mockNet.runNetwork()
         val node2Payload = "Test 1"
         val node3Payload = "Test 2"
@@ -513,11 +505,7 @@ class FlowFrameworkTests {
 
     @Test
     fun `FlowException propagated in invocation chain`() {
-<<<<<<< 4c6e8da73e40f300d5887f66edc32deaf8c3fb9f
         val node3 = mockNet.createNode()
-=======
-        val node3 = mockNet.createNode(aliceNode.network.myAddress)
->>>>>>> Move away from chooseIdentity in FlowFrameworkTests
         mockNet.runNetwork()
 
         node3.registerFlowFactory(ReceiveFlow::class) { ExceptionFlow { MyFlowException("Chain") } }
@@ -531,11 +519,7 @@ class FlowFrameworkTests {
 
     @Test
     fun `FlowException thrown and there is a 3rd unrelated party flow`() {
-<<<<<<< 4c6e8da73e40f300d5887f66edc32deaf8c3fb9f
         val node3 = mockNet.createNode()
-=======
-        val node3 = mockNet.createNode(aliceNode.network.myAddress)
->>>>>>> Move away from chooseIdentity in FlowFrameworkTests
         mockNet.runNetwork()
 
         // Node 2 will send its payload and then block waiting for the receive from node 1. Meanwhile node 1 will move
