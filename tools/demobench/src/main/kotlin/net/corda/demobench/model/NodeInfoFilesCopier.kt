@@ -7,11 +7,16 @@ import net.corda.core.internal.isRegularFile
 import net.corda.core.utilities.loggerFor
 import rx.Observable
 import rx.Scheduler
-import rx.Subscription
 import rx.schedulers.Schedulers
-import java.nio.file.*
+import tornadofx.*
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardWatchEventKinds
+import java.nio.file.WatchEvent
+import java.nio.file.WatchKey
+import java.nio.file.WatchService
 import java.util.concurrent.TimeUnit
-
 
 /**
  * Utility class which copies nodeInfo files across a set of running nodes.
@@ -19,18 +24,15 @@ import java.util.concurrent.TimeUnit
  * This class will create paths that it needs to poll and to where it needs to copy files in case those
  * don't exist yet.
  */
-class NodeInfoFilesCopier(scheduler: Scheduler = Schedulers.io()) {
+class NodeInfoFilesCopier(scheduler: Scheduler = Schedulers.io()): Controller() {
+
+    class NodeWasNeverRegisteredException: IllegalStateException()
 
     companion object {
         private val logger = loggerFor<NodeInfoFilesCopier>()
     }
 
-    // Paths we are copying into.
-    private val destinations = mutableListOf<Path>()
-    // WatchServices watching paths we are watching.
-    private val watchTargets = mutableListOf<WatchTarget>()
-    // Set of paths of files which have been copied from already..
-    private val previouslySeenFiles = mutableSetOf<Path>()
+    private val nodeDataMap = mutableMapOf<Path, NodeData>()
 
     init {
         Observable.interval(5, TimeUnit.SECONDS, scheduler)
@@ -38,79 +40,103 @@ class NodeInfoFilesCopier(scheduler: Scheduler = Schedulers.io()) {
     }
 
     /**
+     * @param nodeConfig the configuration to be added.
      * Add a [NodeConfig] for a node which is about to be started.
      * Its nodeInfo file will be copied to other nodes' additional-node-infos directory, and conversely,
      * other nodes' nodeInfo files will be copied to this node additional-node-infos directory.
      */
+    @Synchronized
     fun addConfig(nodeConfig: NodeConfig) {
-        addDestination(nodeConfig.nodeDir.resolve(CordformNode.NODE_INFO_DIRECTORY))
-        watchTargets.add(WatchTarget(nodeConfig.nodeDir))
+        val newNodeFile = NodeData(nodeConfig.nodeDir)
+        nodeDataMap.put(nodeConfig.nodeDir, newNodeFile)
+
+        for (previouslySeenFile in allPreviouslySeenFiles()) {
+            copy(previouslySeenFile, newNodeFile.destination.resolve(previouslySeenFile.fileName))
+        }
+        logger.info("Now watching: ${nodeConfig.nodeDir}")
     }
 
+    /**
+     * @param nodeConfig the configuration to be removed.
+     * Remove the configuration of a node which is about to be stopped or already stopped.
+     * No files written by that node will be copied to other nodes, nor files from other nodes will be copied to this
+     * one.
+     *
+     * @throws NodeWasNeverRegisteredException if [addConfig] was not called before with the same [nodeConfig]
+     */
+    @Synchronized
+    fun removeConfig(nodeConfig: NodeConfig) {
+        val nodeData = nodeDataMap.get(nodeConfig.nodeDir) ?: throw NodeWasNeverRegisteredException()
+        nodeData.watchService.close()
+        nodeDataMap.remove(nodeConfig.nodeDir)
+        logger.info("Stopped watching: ${nodeConfig.nodeDir}")
+    }
+
+    private fun allPreviouslySeenFiles() = nodeDataMap.values.map { it.previouslySeenFiles }.flatten()
+
+    @Synchronized
     private fun poll() {
-        for (watchTarget in watchTargets) {
-            val watchKey: WatchKey = watchTarget.watchService.poll() ?: continue
+        for (nodeFile in nodeDataMap.values) {
+            val path = nodeFile.nodeDir
+            val watchService = nodeFile.watchService
+            val watchKey: WatchKey = watchService.poll() ?: continue
 
             for (event in watchKey.pollEvents()) {
                 val kind = event.kind()
                 if (kind == StandardWatchEventKinds.OVERFLOW) continue
 
                 @Suppress("UNCHECKED_CAST")
-                val fileName : Path = (event as WatchEvent<Path>).context()
-                val fullSourcePath = watchTarget.path.resolve(fileName)
+                val fileName: Path = (event as WatchEvent<Path>).context()
+                val fullSourcePath = path.resolve(fileName)
                 if (fullSourcePath.isRegularFile() && fileName.toString().startsWith("nodeInfo-")) {
-                    previouslySeenFiles.add(fullSourcePath)
-                    for (destination in destinations) {
+                    nodeFile.previouslySeenFiles.add(fullSourcePath)
+                    for (destination in nodeDataMap.values.map { it.destination }) {
                         val fullDestinationPath = destination.resolve(fileName)
                         copy(fullSourcePath, fullDestinationPath)
                     }
                 }
             }
             if (!watchKey.reset()) {
-                logger.warn("Couldn't reset watchKey for path ${watchTarget.path}, it was probably deleted.")
+                logger.warn("Couldn't reset watchKey for path $path, it was probably deleted.")
             }
         }
     }
 
-    private fun copy(source : Path, destination: Path) {
+    private fun copy(source: Path, destination: Path) {
         try {
             // REPLACE_EXISTING is needed in case we copy a file being written and we need to overwrite it with the
             // "full" file.
             Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING)
-        } catch (exception : Exception) {
-            logger.warn("Couldn't copy $source to $destination. Exception: $exception")
+        } catch (exception: Exception) {
+            logger.warn("Couldn't copy $source to $destination.", exception)
         }
     }
 
-    private fun addDestination(destination : Path) {
-        destination.createDirectories()
-        destinations.add(destination)
-
-        for (previouslySeenFile in previouslySeenFiles) {
-            copy(previouslySeenFile, destination.resolve(previouslySeenFile.fileName))
-        }
-    }
-
-    // Utility class which holds a path and a WatchService watching that path.
-    // If path doesn't exist, it is created.
-    private class WatchTarget(val path : Path) {
-        val watchService : WatchService
-
-        init {
-            this.watchService = initWatch(path)
-        }
-
+    /**
+     * Convenience holder for all the paths and files relative to a single node.
+     */
+    private class NodeData(val nodeDir: Path) {
         companion object {
             private fun initWatch(path: Path): WatchService {
                 if (!path.isDirectory()) {
                     logger.info("Creating $path which doesn't exist.")
-                    path.toFile().mkdirs()
+                    path.createDirectories()
                 }
                 val watchService = path.fileSystem.newWatchService()
                 path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY)
                 logger.info("Now watching $path")
                 return watchService
             }
+        }
+
+        val watchService: WatchService
+        val destination: Path
+        val previouslySeenFiles = mutableSetOf<Path>()
+
+        init {
+            this.watchService = initWatch(nodeDir)
+            this.destination = nodeDir.resolve(CordformNode.NODE_INFO_DIRECTORY)
+            destination.createDirectories()
         }
     }
 }

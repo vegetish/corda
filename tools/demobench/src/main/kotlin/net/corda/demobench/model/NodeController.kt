@@ -23,6 +23,7 @@ class NodeController(check: atRuntime = ::checkExists) : Controller() {
     private val jvm by inject<JVMConfig>()
     private val pluginController by inject<PluginController>()
     private val serviceController by inject<ServiceController>()
+    private val nodeInfoFilesCopier by inject<NodeInfoFilesCopier>()
 
     private var baseDir: Path = baseDirFor(ManagementFactory.getRuntimeMXBean().startTime)
     private val cordaPath: Path = jvm.applicationDir.resolve("corda").resolve("corda.jar")
@@ -32,8 +33,6 @@ class NodeController(check: atRuntime = ::checkExists) : Controller() {
     private val port = AtomicInteger(firstPort)
 
     private var networkMapConfig: NetworkMapConfig? = null
-
-    private var nodeInfoFilesCopier: NodeInfoFilesCopier = NodeInfoFilesCopier()
 
     val activeNodes: List<NodeConfig> get() = nodes.values.filter {
         (it.state == NodeState.RUNNING) || (it.state == NodeState.STARTING)
@@ -82,6 +81,8 @@ class NodeController(check: atRuntime = ::checkExists) : Controller() {
 
     fun dispose(config: NodeConfig) {
         config.state = NodeState.DEAD
+
+        nodeInfoFilesCopier.removeConfig(config)
 
         if (config.networkMap == null) {
             log.warning("Network map service (Node '${config.legalName}') has exited.")

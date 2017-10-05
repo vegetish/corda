@@ -1,24 +1,18 @@
 package net.corda.demobench.model
 
-import com.nhaarman.mockito_kotlin.whenever
 import net.corda.cordform.CordformNode
 import net.corda.core.identity.CordaX500Name
-import net.corda.core.node.NodeInfo
-import net.corda.nodeapi.User
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import org.mockito.Mock
-import org.mockito.junit.MockitoJUnit
 import rx.schedulers.TestScheduler
-import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.streams.toList
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertFailsWith
 
 /**
  * tests for [NodeInfoFilesCopier]
@@ -35,6 +29,7 @@ class NodeInfoFilesCopierTest {
 
         private val content = "blah".toByteArray(Charsets.UTF_8)
         private val GOOD_NODE_INFO_NAME = "nodeInfo-test"
+        private val GOOD_NODE_INFO_NAME_2 = "nodeInfo-anotherNode"
         private val BAD_NODE_INFO_NAME = "something"
         private val legalName = CordaX500Name(organisation = ORGANIZATION, locality = "Nowhere", country = "GB")
     }
@@ -48,14 +43,19 @@ class NodeInfoFilesCopierTest {
     private val node1AdditionalNodeInfoPath by lazy { node1RootPath.resolve(CordformNode.NODE_INFO_DIRECTORY) }
     private val node2AdditionalNodeInfoPath by lazy { node2RootPath.resolve(CordformNode.NODE_INFO_DIRECTORY) }
 
+    lateinit var nodeInfoFilesCopier: NodeInfoFilesCopier
+
+    @Before
+    fun setUp() {
+        nodeInfoFilesCopier = NodeInfoFilesCopier(scheduler)
+    }
+
     @Test
     fun `files created before a node is started are copied to that node`() {
-        val nodeInfoFilesCopier = NodeInfoFilesCopier(scheduler)
-
         // Configure the first node.
         nodeInfoFilesCopier.addConfig(node1Config)
         // Ensure directories are created.
-        scheduler.advanceTimeBy(1, TimeUnit.HOURS)
+        advanceTime()
 
         // Create 2 files, a nodeInfo and another file in node1 folder.
         Files.write(node1RootPath.resolve(GOOD_NODE_INFO_NAME), content)
@@ -63,7 +63,7 @@ class NodeInfoFilesCopierTest {
 
         // Configure the second node.
         nodeInfoFilesCopier.addConfig(node2Config)
-        scheduler.advanceTimeBy(1, TimeUnit.HOURS)
+        advanceTime()
 
         // Check only one file is copied.
         checkDirectoryContainsSingleFile(node2AdditionalNodeInfoPath, GOOD_NODE_INFO_NAME)
@@ -71,20 +71,51 @@ class NodeInfoFilesCopierTest {
 
     @Test
     fun `polling of running nodes`() {
-        val nodeInfoFilesCopier = NodeInfoFilesCopier(scheduler)
-
         // Configure 2 nodes.
         nodeInfoFilesCopier.addConfig(node1Config)
         nodeInfoFilesCopier.addConfig(node2Config)
-        scheduler.advanceTimeBy(1, TimeUnit.HOURS)
+        advanceTime()
 
         // Create 2 files, one of which to be copied, in a node root path.
         Files.write(node2RootPath.resolve(GOOD_NODE_INFO_NAME), content)
         Files.write(node2RootPath.resolve(BAD_NODE_INFO_NAME), content)
-        scheduler.advanceTimeBy(1, TimeUnit.HOURS)
+        advanceTime()
 
         // Check only one file is copied to the other node.
         checkDirectoryContainsSingleFile(node1AdditionalNodeInfoPath, GOOD_NODE_INFO_NAME)
+    }
+
+    @Test
+    fun `remove nodes`() {
+        nodeInfoFilesCopier.addConfig(node1Config)
+        nodeInfoFilesCopier.addConfig(node2Config)
+        advanceTime()
+
+        // Create a file, in node 2 root path.
+        Files.write(node2RootPath.resolve(GOOD_NODE_INFO_NAME), content)
+        advanceTime()
+
+        // Remove node 2
+        nodeInfoFilesCopier.removeConfig(node2Config)
+
+        // Create another file in node 2 directory.
+        Files.write(node2RootPath.resolve(GOOD_NODE_INFO_NAME_2), content)
+        advanceTime()
+
+        // Check only one file is copied to the other node.
+        checkDirectoryContainsSingleFile(node1AdditionalNodeInfoPath, GOOD_NODE_INFO_NAME)
+    }
+
+    @Test
+    fun `remove throws if the node wasn't added`() {
+        assertFailsWith(NodeInfoFilesCopier.NodeWasNeverRegisteredException::class) {
+            nodeInfoFilesCopier.removeConfig(node2Config)
+        }
+    }
+
+    private fun advanceTime() {
+        Thread.sleep(10)
+        scheduler.advanceTimeBy(1, TimeUnit.HOURS)
     }
 
     private fun checkDirectoryContainsSingleFile(path: Path, filename: String) {
@@ -93,7 +124,7 @@ class NodeInfoFilesCopierTest {
         assertEquals(filename, onlyFileName)
     }
 
-    private fun createConfig(relativePath : String) = NodeConfig(
+    private fun createConfig(relativePath: String) = NodeConfig(
             rootPath.resolve(relativePath),
             legalName = legalName,
             p2pPort = -1,
