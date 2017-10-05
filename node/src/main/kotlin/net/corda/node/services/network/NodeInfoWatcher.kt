@@ -12,11 +12,7 @@ import net.corda.core.utilities.loggerFor
 import rx.Observable
 import rx.Scheduler
 import rx.schedulers.Schedulers
-import java.nio.file.Path
-import java.nio.file.StandardWatchEventKinds
-import java.nio.file.WatchEvent
-import java.nio.file.WatchKey
-import java.nio.file.WatchService
+import java.nio.file.*
 import java.util.concurrent.TimeUnit
 import kotlin.streams.toList
 
@@ -52,11 +48,11 @@ class NodeInfoWatcher(private val nodePath: Path,
             try {
                 path.createDirectories()
                 val serializedBytes = nodeInfo.serialize()
-                val regSig = keyManager.sign(serializedBytes.bytes,
-                        nodeInfo.legalIdentities.first().owningKey)
+                val regSig = keyManager.sign(serializedBytes.bytes, nodeInfo.legalIdentities.first().owningKey)
                 val signedData = SignedData(serializedBytes, regSig)
-                val file = (path / ("nodeInfo-" + SecureHash.sha256(serializedBytes.bytes).toString())).toFile()
-                file.writeBytes(signedData.serialize().bytes)
+                Files.newOutputStream(path / ("nodeInfo-" + serializedBytes.hash.toString())).use { out ->
+                    out.write(signedData.serialize().bytes)
+                }
             } catch (e: Exception) {
                 logger.warn("Couldn't write node info to file", e)
             }
