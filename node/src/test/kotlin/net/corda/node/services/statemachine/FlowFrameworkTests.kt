@@ -75,7 +75,7 @@ class FlowFrameworkTests {
     private lateinit var notary2Identity: Party
 
     private fun StartedNode<*>.flushSmm() {
-        (this as StateMachineManagerImpl).executor.flush()
+        (this.smm as StateMachineManagerImpl).executor.flush()
     }
 
     @Before

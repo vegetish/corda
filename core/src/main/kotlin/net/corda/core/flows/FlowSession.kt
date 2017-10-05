@@ -60,7 +60,7 @@ abstract class FlowSession {
     @Suspendable
     abstract fun getCounterpartyFlowInfo(maySkipCheckpoint: Boolean): FlowInfo
     @Suspendable
-    open fun getCounterpartyFlowInfo(): FlowInfo = getCounterpartyFlowInfo(maySkipCheckpoint = false)
+    abstract fun getCounterpartyFlowInfo(): FlowInfo
 
     /**
      * Serializes and queues the given [payload] object for sending to the [counterparty]. Suspends until a response
@@ -95,9 +95,7 @@ abstract class FlowSession {
     abstract fun <R : Any> sendAndReceive(receiveType: Class<R>, payload: Any, maySkipCheckpoint: Boolean):
             UntrustworthyData<R>
     @Suspendable
-    open fun <R : Any> sendAndReceive(receiveType: Class<R>, payload: Any): UntrustworthyData<R> {
-        return sendAndReceive(receiveType, payload, maySkipCheckpoint = false)
-    }
+    abstract fun <R : Any> sendAndReceive(receiveType: Class<R>, payload: Any): UntrustworthyData<R>
 
     /**
      * Suspends until [counterparty] sends us a message of type [R].
@@ -123,7 +121,7 @@ abstract class FlowSession {
     @Suspendable
     abstract fun <R : Any> receive(receiveType: Class<R>, maySkipCheckpoint: Boolean): UntrustworthyData<R>
     @Suspendable
-    open fun <R : Any> receive(receiveType: Class<R>): UntrustworthyData<R> = receive(receiveType, maySkipCheckpoint = false)
+    abstract fun <R : Any> receive(receiveType: Class<R>): UntrustworthyData<R>
 
     /**
      * Queues the given [payload] for sending to the [counterparty] and continues without suspending.
