@@ -7,6 +7,10 @@ from the previous milestone release.
 UNRELEASED
 ----------
 
+* The ``Cordformation`` gradle plugin has been split into ``cordformation`` and ``cordapp``. The former builds and
+  deploys nodes for development and testing, the latter turns a project into a cordapp project that generates JARs in
+  the standard CorDapp format.   
+
 * ``Cordform`` and node identity generation
   * Cordform may not specify a value for ``NetworkMap``, when that happens, during the task execution the following happens:
     1. Each node is started and its signed serialized NodeInfo is written to disk in the node base directory.
