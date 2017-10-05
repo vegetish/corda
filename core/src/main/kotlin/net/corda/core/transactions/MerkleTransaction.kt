@@ -111,6 +111,7 @@ class FilteredTransaction private constructor(
             val filteredSerialisedComponents: MutableMap<Int, MutableList<OpaqueBytes>> = hashMapOf()
             val filteredComponentNonces: MutableMap<Int, MutableList<SecureHash>> = hashMapOf()
             val filteredComponentHashes: MutableMap<Int, MutableList<SecureHash>> = hashMapOf() // Required for partial Merkle tree generation.
+            var signersIncluded = false
 
             fun <T : Any> filter(t: T, componentGroupIndex: Int, internalIndex: Int) {
                 if (filtering.test(t)) {
@@ -131,6 +132,20 @@ class FilteredTransaction private constructor(
                         // filteredComponentNonces[componentGroupIndex] and filteredComponentHashes[componentGroupIndex] are not null.
                         filteredComponentNonces[componentGroupIndex]!!.add(wtx.availableComponentNonces[componentGroupIndex]!![internalIndex])
                         filteredComponentHashes[componentGroupIndex]!!.add(wtx.availableComponentHashes[componentGroupIndex]!![internalIndex])
+                    }
+                    // If at least one command is visible, then all command-signers should be visible as well.
+                    // This is required for visibility purposes, see FilteredTransaction.checkAllCommandsVisible() for more details.
+                    if (componentGroupIndex == ComponentGroupEnum.COMMANDS_GROUP.ordinal && !signersIncluded) {
+                        signersIncluded = true
+                        val signersGroupComponents = wtx.componentGroups.firstOrNull() { it.groupIndex == ComponentGroupEnum.SIGNERS_GROUP.ordinal }
+                        // Check if there is indeed a SIGNERS_GROUP. It is possible that this transaction was sent from an old client,
+                        // in which case there is no signers group to send.
+                        if (signersGroupComponents != null) {
+                            val groupIndex = signersGroupComponents.groupIndex
+                            filteredSerialisedComponents.put(groupIndex, signersGroupComponents.components.toMutableList())
+                            filteredComponentNonces.put(groupIndex, wtx.availableComponentNonces[groupIndex]!!.toMutableList())
+                            filteredComponentHashes.put(groupIndex, wtx.availableComponentHashes[groupIndex]!!.toMutableList())
+                        }
                     }
                 }
             }
@@ -229,18 +244,47 @@ class FilteredTransaction private constructor(
             visibilityCheck(group.groupIndex < groupHashes.size ) { "There is no matching component group hash for group ${group.groupIndex}" }
             val groupPartialRoot = groupHashes[group.groupIndex]
             val groupFullRoot = MerkleTree.getMerkleTree(group.components.mapIndexed { index, component -> componentHash(group.nonces[index], component) }).hash
-            visibilityCheck(groupPartialRoot == groupFullRoot) { "The partial Merkle tree root does not match with the received root for group ${group.groupIndex}" }
+            visibilityCheck(groupPartialRoot == groupFullRoot) { "Some components for group ${group.groupIndex} are not visible" }
         }
     }
 
-    inline private fun verificationCheck(value: Boolean, lazyMessage: () -> Any): Unit {
+    @Throws(ComponentVisibilityException::class)
+    fun checkCommandVisibility(publicKey: PublicKey) {
+        val commandSigners = componentGroups.firstOrNull { it.groupIndex == ComponentGroupEnum.SIGNERS_GROUP.ordinal }
+        if(commandSigners == null) {
+            // Because no list of signing keys is provided,  we should ensure all commands are visible.
+            // TODO: Consider removing this requirement, as old clients might not follow this rule and they won't send all commands.
+            checkAllComponentsVisible(ComponentGroupEnum.COMMANDS_GROUP)
+        } else {
+            checkAllComponentsVisible(ComponentGroupEnum.SIGNERS_GROUP)
+            val expectedNumOfCommands = expectedNumOfCommands(publicKey, commandSigners)
+            val receivedForThisKeyNumOfCommands = commands.filter { it.signers.contains(publicKey) }.size
+            visibilityCheck(expectedNumOfCommands == receivedForThisKeyNumOfCommands) { "Expected $expectedNumOfCommands commands, but only $receivedForThisKeyNumOfCommands related commands are visible" }
+        }
+    }
+
+    private fun expectedNumOfCommands(publicKey: PublicKey, commandSigners: ComponentGroup): Int {
+        fun signersKeys (internalIndex: Int, opaqueBytes: OpaqueBytes): List<PublicKey> {
+            try {
+                return SerializedBytes<List<PublicKey>>(opaqueBytes.bytes).deserialize()
+            } catch (e: Exception) {
+                throw Exception("Malformed transaction, signers at index $internalIndex cannot be deserialised", e)
+            }
+        }
+
+        return commandSigners.components
+                .mapIndexed { internalIndex, opaqueBytes ->  signersKeys(internalIndex, opaqueBytes) }
+                .filter { it.contains(publicKey) }.size
+    }
+
+    inline private fun verificationCheck(value: Boolean, lazyMessage: () -> Any) {
         if (!value) {
             val message = lazyMessage()
             throw FilteredTransactionVerificationException(id, message.toString())
         }
     }
 
-    inline private fun visibilityCheck(value: Boolean, lazyMessage: () -> Any): Unit {
+    inline private fun visibilityCheck(value: Boolean, lazyMessage: () -> Any) {
         if (!value) {
             val message = lazyMessage()
             throw ComponentVisibilityException(id, message.toString())

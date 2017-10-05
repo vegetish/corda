@@ -6,9 +6,10 @@ import net.corda.core.crypto.*
 import net.corda.core.identity.Party
 import net.corda.core.internal.Emoji
 import net.corda.core.node.ServicesForResolution
-import net.corda.core.serialization.*
-import net.corda.core.utilities.OpaqueBytes
 import net.corda.core.node.services.AttachmentId
+import net.corda.core.serialization.CordaSerializable
+import net.corda.core.serialization.serialize
+import net.corda.core.utilities.OpaqueBytes
 import java.security.PublicKey
 import java.security.SignatureException
 import java.util.function.Predicate
@@ -212,10 +213,16 @@ class WireTransaction(componentGroups: List<ComponentGroup>, val privacySalt: Pr
             val componentGroupMap: MutableList<ComponentGroup> = mutableListOf()
             if (inputs.isNotEmpty()) componentGroupMap.add(ComponentGroup(INPUTS_GROUP.ordinal, inputs.map { it.serialize() }))
             if (outputs.isNotEmpty()) componentGroupMap.add(ComponentGroup(OUTPUTS_GROUP.ordinal, outputs.map { it.serialize() }))
+            // TODO: In the future we could only serialise CommandData as part of the COMMANDS_GROUP and then
+            //      construct a Command object based on this and the signers group.
+            //      We don't do it now, because it will break backwards compatibility.
             if (commands.isNotEmpty()) componentGroupMap.add(ComponentGroup(COMMANDS_GROUP.ordinal, commands.map { it.serialize() }))
             if (attachments.isNotEmpty()) componentGroupMap.add(ComponentGroup(ATTACHMENTS_GROUP.ordinal, attachments.map { it.serialize() }))
             if (notary != null) componentGroupMap.add(ComponentGroup(NOTARY_GROUP.ordinal, listOf(notary.serialize())))
             if (timeWindow != null) componentGroupMap.add(ComponentGroup(TIMEWINDOW_GROUP.ordinal, listOf(timeWindow.serialize())))
+            // Adding signers to their own group. This is required for command visibility purposes: a party receiving
+            // a FilteredTransaction can now verify it sees all the commands it should sign.
+            if (commands.isNotEmpty()) componentGroupMap.add(ComponentGroup(SIGNERS_GROUP.ordinal, commands.map { it.signers.serialize() }))
             return componentGroupMap
         }
     }
