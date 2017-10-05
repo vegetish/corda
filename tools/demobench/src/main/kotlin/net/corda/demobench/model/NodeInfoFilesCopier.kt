@@ -61,15 +61,18 @@ class NodeInfoFilesCopier(scheduler: Scheduler = Schedulers.io()): Controller() 
      * Remove the configuration of a node which is about to be stopped or already stopped.
      * No files written by that node will be copied to other nodes, nor files from other nodes will be copied to this
      * one.
-     *
-     * @throws NodeWasNeverRegisteredException if [addConfig] was not called before with the same [nodeConfig]
      */
     @Synchronized
     fun removeConfig(nodeConfig: NodeConfig) {
-        val nodeData = nodeDataMap.get(nodeConfig.nodeDir) ?: throw NodeWasNeverRegisteredException()
+        val nodeData = nodeDataMap.get(nodeConfig.nodeDir) ?: return
         nodeData.watchService.close()
         nodeDataMap.remove(nodeConfig.nodeDir)
         logger.info("Stopped watching: ${nodeConfig.nodeDir}")
+    }
+
+    fun reset() {
+        nodeDataMap.values.map { it.watchService }.forEach { it.close() }
+        nodeDataMap.clear()
     }
 
     private fun allPreviouslySeenFiles() = nodeDataMap.values.map { it.previouslySeenFiles }.flatten()

@@ -2,6 +2,7 @@ package net.corda.demobench.model
 
 import net.corda.cordform.CordformNode
 import net.corda.core.identity.CordaX500Name
+import net.corda.testing.eventually
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -9,10 +10,10 @@ import org.junit.rules.TemporaryFolder
 import rx.schedulers.TestScheduler
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlin.streams.toList
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 
 /**
  * tests for [NodeInfoFilesCopier]
@@ -65,8 +66,13 @@ class NodeInfoFilesCopierTest {
         nodeInfoFilesCopier.addConfig(node2Config)
         advanceTime()
 
-        // Check only one file is copied.
-        checkDirectoryContainsSingleFile(node2AdditionalNodeInfoPath, GOOD_NODE_INFO_NAME)
+        // Give some time to the filesystem to report the change.
+        Thread.sleep(100)
+
+        eventually<AssertionError, Unit>(Duration.ofMinutes(1)) {
+            // Check only one file is copied.
+            checkDirectoryContainsSingleFile(node2AdditionalNodeInfoPath, GOOD_NODE_INFO_NAME)
+        }
     }
 
     @Test
@@ -81,12 +87,15 @@ class NodeInfoFilesCopierTest {
         Files.write(node2RootPath.resolve(BAD_NODE_INFO_NAME), content)
         advanceTime()
 
-        // Check only one file is copied to the other node.
-        checkDirectoryContainsSingleFile(node1AdditionalNodeInfoPath, GOOD_NODE_INFO_NAME)
+        eventually<AssertionError, Unit>(Duration.ofMinutes(1)) {
+            // Check only one file is copied to the other node.
+            checkDirectoryContainsSingleFile(node1AdditionalNodeInfoPath, GOOD_NODE_INFO_NAME)
+        }
     }
 
     @Test
     fun `remove nodes`() {
+        // Configure 2 nodes.
         nodeInfoFilesCopier.addConfig(node1Config)
         nodeInfoFilesCopier.addConfig(node2Config)
         advanceTime()
@@ -102,19 +111,30 @@ class NodeInfoFilesCopierTest {
         Files.write(node2RootPath.resolve(GOOD_NODE_INFO_NAME_2), content)
         advanceTime()
 
-        // Check only one file is copied to the other node.
-        checkDirectoryContainsSingleFile(node1AdditionalNodeInfoPath, GOOD_NODE_INFO_NAME)
-    }
-
-    @Test
-    fun `remove throws if the node wasn't added`() {
-        assertFailsWith(NodeInfoFilesCopier.NodeWasNeverRegisteredException::class) {
-            nodeInfoFilesCopier.removeConfig(node2Config)
+        eventually<AssertionError, Unit>(Duration.ofMinutes(1)) {
+            // Check only one file is copied to the other node.
+            checkDirectoryContainsSingleFile(node1AdditionalNodeInfoPath, GOOD_NODE_INFO_NAME)
         }
     }
 
+    @Test
+    fun `clear`() {
+        // Configure 2 nodes.
+        nodeInfoFilesCopier.addConfig(node1Config)
+        nodeInfoFilesCopier.addConfig(node2Config)
+        advanceTime()
+
+        nodeInfoFilesCopier.reset()
+
+        advanceTime()
+        Files.write(node2RootPath.resolve(GOOD_NODE_INFO_NAME_2), content)
+
+        // Give some time to the filesystem to report the change.
+        Thread.sleep(100)
+        assertEquals(0, Files.list(node1AdditionalNodeInfoPath).toList().size)
+    }
+
     private fun advanceTime() {
-        Thread.sleep(10)
         scheduler.advanceTimeBy(1, TimeUnit.HOURS)
     }
 

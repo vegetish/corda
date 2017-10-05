@@ -143,6 +143,7 @@ class NodeController(check: atRuntime = ::checkExists) : Controller() {
         // Wipe out any knowledge of previous nodes.
         networkMapConfig = null
         nodes.clear()
+        nodeInfoFilesCopier.reset()
     }
 
     /**
