@@ -170,8 +170,13 @@ fun NodeInfo.chooseIdentity(): Party = chooseIdentityAndCert().party
 /** Returns the identity of the first notary found on the network */
 fun ServiceHub.getDefaultNotary(): Party = networkMapCache.notaryIdentities.first()
 
+/**
+ * Get the full party and certificate by name.
+ *
+ * @return a party and certificate, or null if no matching node was found.
+ */
 fun NetworkMapCache.getPeerCertificateByLegalName(name: CordaX500Name): PartyAndCertificate? {
-    return getNodeByLegalName(name)!!.legalIdentitiesAndCerts.single { it.name == name }
+    return getNodeByLegalName(name)?.legalIdentitiesAndCerts?.single { it.name == name }
 }
 
 /**
