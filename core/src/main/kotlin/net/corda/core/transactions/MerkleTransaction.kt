@@ -226,7 +226,9 @@ class FilteredTransaction private constructor(
     /**
      * Function that checks if all of the components in a particular group are visible.
      * This functionality is required on non-Validating Notaries to check that all inputs are visible.
-     * It might also be applied in Oracles, where an Oracle should know it can see all commands.
+     * It might also be applied in Oracles or any other entity requiring [Command] visibility, but because this method
+     * cannot distinguish between related and unrelated to the signer [Command]s, one should use the
+     * [checkCommandVisibility] method, which is specifically designed for [Command] visibility purposes.
      * The logic behind this algorithm is that we check that the root of the provided group partialMerkleTree matches with the
      * root of a fullMerkleTree if computed using all visible components.
      * Note that this method is usually called after or before [verify], to also ensure that the provided partial Merkle
@@ -264,7 +266,7 @@ class FilteredTransaction private constructor(
     @Throws(ComponentVisibilityException::class)
     fun checkCommandVisibility(publicKey: PublicKey) {
         val commandSigners = componentGroups.firstOrNull { it.groupIndex == ComponentGroupEnum.SIGNERS_GROUP.ordinal }
-        if(commandSigners == null) {
+        if (commandSigners == null) {
             // Because a list of signing keys is not provided, we should at least ensure all commands are visible.
             // TODO: Consider removing this requirement, as old clients might not follow this rule.
             checkAllComponentsVisible(ComponentGroupEnum.COMMANDS_GROUP)
