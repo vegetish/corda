@@ -113,8 +113,8 @@ class VerifierTests {
     @Test
     fun `single verifier works with a node`() {
         verifierDriver(
-            networkMapStartStrategy = NetworkMapStartStrategy.Dedicated(startAutomatically = true),
-            extraCordappPackagesToScan = listOf("net.corda.finance.contracts")
+                networkMapStartStrategy = NetworkMapStartStrategy.Dedicated(startAutomatically = true),
+                extraCordappPackagesToScan = listOf("net.corda.finance.contracts")
         ) {
             val aliceFuture = startNode(providedName = ALICE.name)
             val notaryFuture = startNode(providedName = DUMMY_NOTARY.name, advertisedServices = setOf(ServiceInfo(ValidatingNotaryService.type)), verifierType = VerifierType.OutOfProcess)
