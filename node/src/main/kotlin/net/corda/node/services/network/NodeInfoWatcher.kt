@@ -33,7 +33,7 @@ class NodeInfoWatcher(private val nodePath: Path,
                       private val scheduler: Scheduler = Schedulers.io()) {
 
     private val nodeInfoDirectory = nodePath / CordformNode.NODE_INFO_DIRECTORY
-    private val watchService : WatchService? by lazy { initWatch() }
+    private val watchService: WatchService? by lazy { initWatch() }
 
     companion object {
         private val logger = loggerFor<NodeInfoWatcher>()
@@ -124,7 +124,7 @@ class NodeInfoWatcher(private val nodePath: Path,
         return files.mapNotNull { processFile(it) }
     }
 
-    private fun processFile(file: Path) : NodeInfo? {
+    private fun processFile(file: Path): NodeInfo? {
         try {
             logger.info("Reading NodeInfo from file: $file")
             val signedData = file.readAll().deserialize<SignedData<NodeInfo>>()
@@ -136,7 +136,7 @@ class NodeInfoWatcher(private val nodePath: Path,
     }
 
     // Create a WatchService watching for changes in nodeInfoDirectory.
-    private fun initWatch() : WatchService? {
+    private fun initWatch(): WatchService? {
         if (!nodeInfoDirectory.isDirectory()) {
             logger.warn("Not watching folder $nodeInfoDirectory it doesn't exist or it's not a directory")
             return null

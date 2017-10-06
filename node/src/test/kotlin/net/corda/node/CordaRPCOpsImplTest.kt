@@ -274,6 +274,6 @@ class CordaRPCOpsImplTest {
     @StartableByRPC
     class VoidRPCFlow : FlowLogic<Void?>() {
         @Suspendable
-        override fun call() : Void? = null
+        override fun call(): Void? = null
     }
 }

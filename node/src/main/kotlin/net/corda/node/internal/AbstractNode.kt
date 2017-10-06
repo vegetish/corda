@@ -450,8 +450,8 @@ abstract class AbstractNode(open val configuration: NodeConfiguration,
     protected open fun getNotaryIdentity(): PartyAndCertificate? {
         return advertisedServices.singleOrNull { it.type.isNotary() }?.let {
             it.name?.let {
-                require(it.commonName != null) {"Common name in '$it' must not be null for notary service, use service type id as common name."}
-                require(ServiceType.parse(it.commonName!!).isNotary()) {"Common name for notary service in '$it' must be the notary service type id."}
+                require(it.commonName != null) { "Common name in '$it' must not be null for notary service, use service type id as common name." }
+                require(ServiceType.parse(it.commonName!!).isNotary()) { "Common name for notary service in '$it' must be the notary service type id." }
             }
             obtainIdentity(it)
         }

@@ -36,7 +36,7 @@ abstract class AbstractNodeService(val services: ServiceHubInternal) : Singleton
                     val msg = network.createMessage(topic, request.sessionID, response.serialize().bytes)
                     network.send(msg, request.replyTo)
                 }
-            } catch(e: Exception) {
+            } catch (e: Exception) {
                 exceptionConsumer(message, e)
             }
         }

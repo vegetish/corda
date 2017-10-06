@@ -46,11 +46,12 @@ class DBTransactionStorageTests : TestDependencyInjectionBase() {
         database.transaction {
 
             services = object : MockServices(BOB_KEY) {
-                override val vaultService: VaultService get() {
-                    val vaultService = NodeVaultService(this, database.hibernateConfig)
-                    hibernatePersister = HibernateObserver(vaultService.rawUpdates, database.hibernateConfig)
-                    return vaultService
-                }
+                override val vaultService: VaultService
+                    get() {
+                        val vaultService = NodeVaultService(this, database.hibernateConfig)
+                        hibernatePersister = HibernateObserver(vaultService.rawUpdates, database.hibernateConfig)
+                        return vaultService
+                    }
 
                 override fun recordTransactions(txs: Iterable<SignedTransaction>) {
                     for (stx in txs) {
