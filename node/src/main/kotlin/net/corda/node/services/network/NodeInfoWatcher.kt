@@ -1,9 +1,16 @@
 package net.corda.node.services.network
 
+import com.sun.nio.file.SensitivityWatchEventModifier
 import net.corda.cordform.CordformNode
 import net.corda.core.crypto.SecureHash
 import net.corda.core.crypto.SignedData
-import net.corda.core.internal.*
+import net.corda.core.internal.createDirectories
+import net.corda.core.internal.div
+import net.corda.core.internal.isDirectory
+import net.corda.core.internal.isRegularFile
+import net.corda.core.internal.list
+import net.corda.core.internal.readAll
+import net.corda.core.internal.uncheckedCast
 import net.corda.core.node.NodeInfo
 import net.corda.core.node.services.KeyManagementService
 import net.corda.core.serialization.deserialize
@@ -14,6 +21,8 @@ import rx.Scheduler
 import rx.schedulers.Schedulers
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds
+import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
+import java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY
 import java.nio.file.WatchEvent
 import java.nio.file.WatchKey
 import java.nio.file.WatchService
@@ -142,8 +151,8 @@ class NodeInfoWatcher(private val nodePath: Path,
             return null
         }
         val watchService = nodeInfoDirectory.fileSystem.newWatchService()
-        nodeInfoDirectory.register(watchService, StandardWatchEventKinds.ENTRY_CREATE,
-                StandardWatchEventKinds.ENTRY_MODIFY)
+        nodeInfoDirectory.register(watchService, arrayOf(ENTRY_CREATE, ENTRY_MODIFY),
+                SensitivityWatchEventModifier.HIGH)
         logger.info("Watching $nodeInfoDirectory for new files")
         return watchService
     }
