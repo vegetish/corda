@@ -4,6 +4,7 @@ import net.corda.cordform.CordformNode
 import net.corda.core.internal.createDirectories
 import net.corda.core.internal.isDirectory
 import net.corda.core.internal.isRegularFile
+import net.corda.core.internal.uncheckedCast
 import net.corda.core.utilities.loggerFor
 import rx.Observable
 import rx.Scheduler
@@ -26,8 +27,6 @@ import java.util.concurrent.TimeUnit
  */
 class NodeInfoFilesCopier(scheduler: Scheduler = Schedulers.io()): Controller() {
 
-    class NodeWasNeverRegisteredException: IllegalStateException()
-
     companion object {
         private val logger = loggerFor<NodeInfoFilesCopier>()
     }
@@ -48,7 +47,7 @@ class NodeInfoFilesCopier(scheduler: Scheduler = Schedulers.io()): Controller() 
     @Synchronized
     fun addConfig(nodeConfig: NodeConfig) {
         val newNodeFile = NodeData(nodeConfig.nodeDir)
-        nodeDataMap.put(nodeConfig.nodeDir, newNodeFile)
+        nodeDataMap[nodeConfig.nodeDir] = newNodeFile
 
         for (previouslySeenFile in allPreviouslySeenFiles()) {
             copy(previouslySeenFile, newNodeFile.destination.resolve(previouslySeenFile.fileName))
@@ -64,12 +63,12 @@ class NodeInfoFilesCopier(scheduler: Scheduler = Schedulers.io()): Controller() 
      */
     @Synchronized
     fun removeConfig(nodeConfig: NodeConfig) {
-        val nodeData = nodeDataMap.get(nodeConfig.nodeDir) ?: return
+        val nodeData = nodeDataMap.remove(nodeConfig.nodeDir) ?: return
         nodeData.watchService.close()
-        nodeDataMap.remove(nodeConfig.nodeDir)
         logger.info("Stopped watching: ${nodeConfig.nodeDir}")
     }
 
+    @Synchronized
     fun reset() {
         nodeDataMap.values.map { it.watchService }.forEach { it.close() }
         nodeDataMap.clear()
@@ -88,8 +87,7 @@ class NodeInfoFilesCopier(scheduler: Scheduler = Schedulers.io()): Controller() 
                 val kind = event.kind()
                 if (kind == StandardWatchEventKinds.OVERFLOW) continue
 
-                @Suppress("UNCHECKED_CAST")
-                val fileName: Path = (event as WatchEvent<Path>).context()
+                val fileName: Path =  uncheckedCast<WatchEvent<*>, WatchEvent<Path>>(event).context()
                 val fullSourcePath = path.resolve(fileName)
                 if (fullSourcePath.isRegularFile() && fileName.toString().startsWith("nodeInfo-")) {
                     nodeFile.previouslySeenFiles.add(fullSourcePath)
@@ -122,7 +120,7 @@ class NodeInfoFilesCopier(scheduler: Scheduler = Schedulers.io()): Controller() 
         companion object {
             private fun initWatch(path: Path): WatchService {
                 if (!path.isDirectory()) {
-                    logger.info("Creating $path which doesn't exist.")
+                    logger.info("Creating $path")
                     path.createDirectories()
                 }
                 val watchService = path.fileSystem.newWatchService()
