@@ -1,5 +1,7 @@
 package net.corda.node.services.network
 
+import com.google.common.jimfs.Configuration
+import com.google.common.jimfs.Jimfs
 import net.corda.cordform.CordformNode
 import net.corda.core.internal.createDirectories
 import net.corda.core.internal.div
@@ -7,16 +9,13 @@ import net.corda.core.node.NodeInfo
 import net.corda.core.node.services.KeyManagementService
 import net.corda.core.utilities.seconds
 import net.corda.node.services.identity.InMemoryIdentityService
-import net.corda.testing.ALICE
-import net.corda.testing.ALICE_KEY
-import net.corda.testing.DEV_TRUST_ROOT
-import net.corda.testing.eventually
-import net.corda.testing.getTestPartyAndCertificate
+import net.corda.testing.*
 import net.corda.testing.node.MockKeyManagementService
 import net.corda.testing.node.NodeBasedTest
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.contentOf
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -54,6 +53,7 @@ class NodeInfoWatcherTest : NodeBasedTest() {
 
     @Test
     fun `save a NodeInfo`() {
+        assertEquals(0, folder.root.list().size)
         NodeInfoWatcher.saveToFile(folder.root.toPath(), nodeInfo, keyManagementService)
 
         assertEquals(1, folder.root.list().size)
@@ -68,25 +68,33 @@ class NodeInfoWatcherTest : NodeBasedTest() {
     fun `load an empty Directory`() {
         nodeInfoPath.createDirectories()
 
-        nodeInfoWatcher.nodeInfoUpdates()
+        val subscription = nodeInfoWatcher.nodeInfoUpdates()
                 .subscribe(testSubscriber)
 
-        val readNodes = testSubscriber.onNextEvents.distinct()
-        advanceTime()
-        assertEquals(0, readNodes.size)
+        try {
+            val readNodes = testSubscriber.onNextEvents.distinct()
+            advanceTime()
+            assertEquals(0, readNodes.size)
+        } finally {
+            subscription.unsubscribe()
+        }
     }
 
     @Test
     fun `load a non empty Directory`() {
         createNodeInfoFileInPath(nodeInfo)
 
-        nodeInfoWatcher.nodeInfoUpdates()
+        val subscription = nodeInfoWatcher.nodeInfoUpdates()
                 .subscribe(testSubscriber)
 
-        val readNodes = testSubscriber.onNextEvents.distinct()
+        try {
+            val readNodes = testSubscriber.onNextEvents.distinct()
 
-        assertEquals(1, readNodes.size)
-        assertEquals(nodeInfo, readNodes.first())
+            assertEquals(1, readNodes.size)
+            assertEquals(nodeInfo, readNodes.first())
+        } finally {
+            subscription.unsubscribe()
+        }
     }
 
     @Test
@@ -94,27 +102,27 @@ class NodeInfoWatcherTest : NodeBasedTest() {
         nodeInfoPath.createDirectories()
 
         // Start polling with an empty folder.
-        nodeInfoWatcher.nodeInfoUpdates()
+        val subscription = nodeInfoWatcher.nodeInfoUpdates()
                 .subscribe(testSubscriber)
-        // Ensure the watch service is started.
-        advanceTime()
-        // Check no nodeInfos are read.
-        assertEquals(0, testSubscriber.valueCount)
-        createNodeInfoFileInPath(nodeInfo)
+        try {
+            // Ensure the watch service is started.
+            advanceTime()
+            // Check no nodeInfos are read.
+            assertEquals(0, testSubscriber.valueCount)
+            createNodeInfoFileInPath(nodeInfo)
 
-        advanceTime()
+            advanceTime()
 
-        // We need the WatchService to report a change and that might not happen immediately.
-        eventually<AssertionError, Unit>(5.seconds) {
-            // The same folder can be reported more than once, so take unique values.
-            val readNodes = testSubscriber.onNextEvents.distinct()
-            assertEquals(1, readNodes.size)
-            assertEquals(nodeInfo, readNodes.first())
+            // We need the WatchService to report a change and that might not happen immediately.
+            assertTrue(testSubscriber.awaitValueCount(1, NodeInfoWatcher.POLL_INTERVAL, NodeInfoWatcher.POLL_INTERVAL_UNIT))
+            testSubscriber.assertReceivedOnNext(listOf(nodeInfo))
+        } finally {
+            subscription.unsubscribe()
         }
     }
 
     private fun advanceTime() {
-        scheduler.advanceTimeBy(1, TimeUnit.HOURS)
+        scheduler.advanceTimeBy( NodeInfoWatcher.POLL_INTERVAL * 4, NodeInfoWatcher.POLL_INTERVAL_UNIT)
     }
 
     // Write a nodeInfo under the right path.

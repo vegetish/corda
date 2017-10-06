@@ -36,6 +36,8 @@ class NodeInfoWatcher(private val nodePath: Path,
     private val watchService : WatchService? by lazy { initWatch() }
 
     companion object {
+        const val POLL_INTERVAL = 5L
+        val POLL_INTERVAL_UNIT = TimeUnit.SECONDS
         private val logger = loggerFor<NodeInfoWatcher>()
 
         /**
@@ -71,7 +73,7 @@ class NodeInfoWatcher(private val nodePath: Path,
      *      than once.
      */
     fun nodeInfoUpdates(): Observable<NodeInfo> {
-        val pollForFiles = Observable.interval(5, TimeUnit.SECONDS, scheduler)
+        val pollForFiles = Observable.interval(POLL_INTERVAL, POLL_INTERVAL_UNIT, scheduler)
                 .flatMapIterable { pollWatch() }
         val readCurrentFiles = Observable.from(loadFromDirectory())
         return readCurrentFiles.mergeWith(pollForFiles)
