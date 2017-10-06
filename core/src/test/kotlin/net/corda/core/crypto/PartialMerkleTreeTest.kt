@@ -115,16 +115,18 @@ class PartialMerkleTreeTest : TestDependencyInjectionBase() {
         val d = testTx.serialize().deserialize()
         assertEquals(testTx.id, d.id)
 
-        val mt = testTx.buildFilteredTransaction(Predicate(::filtering))
+        val ftx = testTx.buildFilteredTransaction(Predicate(::filtering))
 
-        assertEquals(4, mt.filteredComponentGroups.size)
-        assertEquals(1, mt.inputs.size)
-        assertEquals(0, mt.attachments.size)
-        assertEquals(1, mt.outputs.size)
-        assertEquals(1, mt.commands.size)
-        assertNull(mt.notary)
-        assertNotNull(mt.timeWindow)
-        mt.verify()
+        // We expect 5 and not 4 component groups, because there is at least one command in the ftx and thus,
+        // the signers component is also sent (required for visibility purposes).
+        assertEquals(5, ftx.filteredComponentGroups.size)
+        assertEquals(1, ftx.inputs.size)
+        assertEquals(0, ftx.attachments.size)
+        assertEquals(1, ftx.outputs.size)
+        assertEquals(1, ftx.commands.size)
+        assertNull(ftx.notary)
+        assertNotNull(ftx.timeWindow)
+        ftx.verify()
     }
 
     @Test

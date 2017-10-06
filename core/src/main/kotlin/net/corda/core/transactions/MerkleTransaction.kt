@@ -137,7 +137,7 @@ class FilteredTransaction private constructor(
                     // This is required for visibility purposes, see FilteredTransaction.checkAllCommandsVisible() for more details.
                     if (componentGroupIndex == ComponentGroupEnum.COMMANDS_GROUP.ordinal && !signersIncluded) {
                         signersIncluded = true
-                        val signersGroupComponents = wtx.componentGroups.firstOrNull() { it.groupIndex == ComponentGroupEnum.SIGNERS_GROUP.ordinal }
+                        val signersGroupComponents = wtx.componentGroups.firstOrNull { it.groupIndex == ComponentGroupEnum.SIGNERS_GROUP.ordinal }
                         // Check if there is indeed a SIGNERS_GROUP. It is possible that this transaction was sent from an old client,
                         // in which case there is no signers group to send.
                         if (signersGroupComponents != null) {
@@ -157,6 +157,10 @@ class FilteredTransaction private constructor(
                 wtx.attachments.forEachIndexed { internalIndex, it -> filter(it, ComponentGroupEnum.ATTACHMENTS_GROUP.ordinal, internalIndex) }
                 if (wtx.notary != null) filter(wtx.notary, ComponentGroupEnum.NOTARY_GROUP.ordinal, 0)
                 if (wtx.timeWindow != null) filter(wtx.timeWindow, ComponentGroupEnum.TIMEWINDOW_GROUP.ordinal, 0)
+                // It is highlighted that because there is no a signers property in TraversableTransaction,
+                // one cannot specifically filter them in or out.
+                // The above is very important to ensure someone won't filter out the signers component group if at least one
+                // command is included in a FilteredTransaction.
 
                 // It's sometimes possible that when we receive a WireTransaction for which there is a new or more unknown component groups,
                 // we decide to filter and attach this field to a FilteredTransaction.
@@ -248,21 +252,31 @@ class FilteredTransaction private constructor(
         }
     }
 
+    /**
+     * Function that checks if all of the commands that should be signed by the input public key are visible.
+     * This functionality is required from Oracles to check that all of the commands they should sign are visible.
+     * This algorithm uses the [ComponentGroupEnum.SIGNERS_GROUP] to count how many commands should be signed by the
+     * input [PublicKey] and it then matches it with the size of received [commands].
+     * Note that this method does not throw if there are no commands for this key to sign in the original [WireTransaction].
+     * @param publicKey signer's [PublicKey]
+     * @throws ComponentVisibilityException if not all of the related commands are visible.
+     */
     @Throws(ComponentVisibilityException::class)
     fun checkCommandVisibility(publicKey: PublicKey) {
         val commandSigners = componentGroups.firstOrNull { it.groupIndex == ComponentGroupEnum.SIGNERS_GROUP.ordinal }
         if(commandSigners == null) {
-            // Because no list of signing keys is provided,  we should ensure all commands are visible.
-            // TODO: Consider removing this requirement, as old clients might not follow this rule and they won't send all commands.
+            // Because a list of signing keys is not provided, we should at least ensure all commands are visible.
+            // TODO: Consider removing this requirement, as old clients might not follow this rule.
             checkAllComponentsVisible(ComponentGroupEnum.COMMANDS_GROUP)
         } else {
             checkAllComponentsVisible(ComponentGroupEnum.SIGNERS_GROUP)
             val expectedNumOfCommands = expectedNumOfCommands(publicKey, commandSigners)
             val receivedForThisKeyNumOfCommands = commands.filter { it.signers.contains(publicKey) }.size
-            visibilityCheck(expectedNumOfCommands == receivedForThisKeyNumOfCommands) { "Expected $expectedNumOfCommands commands, but only $receivedForThisKeyNumOfCommands related commands are visible" }
+            visibilityCheck(expectedNumOfCommands == receivedForThisKeyNumOfCommands) { "$expectedNumOfCommands commands were expected, but received $receivedForThisKeyNumOfCommands" }
         }
     }
 
+    // Function to return number of expected commands to sign.
     private fun expectedNumOfCommands(publicKey: PublicKey, commandSigners: ComponentGroup): Int {
         fun signersKeys (internalIndex: Int, opaqueBytes: OpaqueBytes): List<PublicKey> {
             try {
@@ -274,7 +288,7 @@ class FilteredTransaction private constructor(
 
         return commandSigners.components
                 .mapIndexed { internalIndex, opaqueBytes ->  signersKeys(internalIndex, opaqueBytes) }
-                .filter { it.contains(publicKey) }.size
+                .filter { signers -> publicKey in signers }.size
     }
 
     inline private fun verificationCheck(value: Boolean, lazyMessage: () -> Any) {

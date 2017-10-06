@@ -38,9 +38,10 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
     private val attachmentGroup by lazy { ComponentGroup(ATTACHMENTS_GROUP.ordinal, attachments.map { it.serialize() }) } // The list is empty.
     private val notaryGroup by lazy { ComponentGroup(NOTARY_GROUP.ordinal, listOf(notary.serialize())) }
     private val timeWindowGroup by lazy { ComponentGroup(TIMEWINDOW_GROUP.ordinal, listOf(timeWindow.serialize())) }
+    private val signersGroup by lazy { ComponentGroup(SIGNERS_GROUP.ordinal, commands.map { it.signers.serialize() }) }
 
-    private val newUnknownComponentGroup = ComponentGroup(20, listOf(OpaqueBytes(secureRandomBytes(4)), OpaqueBytes(secureRandomBytes(8))))
-    private val newUnknownComponentEmptyGroup = ComponentGroup(21, emptyList())
+    private val newUnknownComponentGroup = ComponentGroup(100, listOf(OpaqueBytes(secureRandomBytes(4)), OpaqueBytes(secureRandomBytes(8))))
+    private val newUnknownComponentEmptyGroup = ComponentGroup(101, emptyList())
 
     // Do not add attachments (empty list).
     private val componentGroupsA by lazy {
@@ -49,7 +50,8 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
             outputGroup,
             commandGroup,
             notaryGroup,
-            timeWindowGroup
+            timeWindowGroup,
+            signersGroup
         )
     }
     private val wireTransactionA by lazy { WireTransaction(componentGroups = componentGroupsA, privacySalt = privacySalt) }
@@ -74,7 +76,8 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
                 commandGroup,
                 attachmentGroup,
                 notaryGroup,
-                timeWindowGroup
+                timeWindowGroup,
+                signersGroup
         )
         assertFails { WireTransaction(componentGroups = componentGroupsEmptyAttachment, privacySalt = privacySalt) }
 
@@ -86,7 +89,8 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
                 outputGroup,
                 commandGroup,
                 notaryGroup,
-                timeWindowGroup
+                timeWindowGroup,
+                signersGroup
         )
         val wireTransaction1ShuffledInputs = WireTransaction(componentGroups = componentGroupsB, privacySalt = privacySalt)
         // The ID has changed due to change of the internal ordering in inputs.
@@ -106,7 +110,8 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
                 inputGroup,
                 commandGroup,
                 notaryGroup,
-                timeWindowGroup
+                timeWindowGroup,
+                signersGroup
         )
         assertEquals(wireTransactionA, WireTransaction(componentGroups = shuffledComponentGroupsA, privacySalt = privacySalt))
     }
@@ -123,7 +128,8 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
                 commandGroup,
                 ComponentGroup(ATTACHMENTS_GROUP.ordinal, inputGroup.components),
                 notaryGroup,
-                timeWindowGroup
+                timeWindowGroup,
+                signersGroup
         )
         assertFails { WireTransaction(componentGroupsB, privacySalt) }
 
@@ -134,7 +140,8 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
                 commandGroup, // First commandsGroup.
                 commandGroup, // Second commandsGroup.
                 notaryGroup,
-                timeWindowGroup
+                timeWindowGroup,
+                signersGroup
         )
         assertFails { WireTransaction(componentGroupsDuplicatedCommands, privacySalt) }
 
@@ -144,7 +151,8 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
                 outputGroup,
                 commandGroup,
                 notaryGroup,
-                timeWindowGroup
+                timeWindowGroup,
+                signersGroup
         )
         assertFails { WireTransaction(componentGroupsC, privacySalt) }
 
@@ -154,23 +162,24 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
                 commandGroup,
                 notaryGroup,
                 timeWindowGroup,
-                newUnknownComponentGroup // A new unknown component with ordinal 20 that we cannot process.
+                signersGroup,
+                newUnknownComponentGroup // A new unknown component with ordinal 100 that we cannot process.
         )
 
         // The old client (receiving more component types than expected) is still compatible.
         val wireTransactionCompatibleA = WireTransaction(componentGroupsCompatibleA, privacySalt)
         assertEquals(wireTransactionCompatibleA.availableComponentGroups, wireTransactionA.availableComponentGroups) // The known components are the same.
         assertNotEquals(wireTransactionCompatibleA, wireTransactionA) // But obviously, its Merkle root has changed Vs wireTransactionA (which doesn't include this extra component).
-        assertEquals(6, wireTransactionCompatibleA.componentGroups.size)
 
-        // The old client will trhow if receiving an empty component (even if this unknown).
+        // The old client will throw if receiving an empty component (even if this is unknown).
         val componentGroupsCompatibleEmptyNew = listOf(
                 inputGroup,
                 outputGroup,
                 commandGroup,
                 notaryGroup,
                 timeWindowGroup,
-                newUnknownComponentEmptyGroup // A new unknown component with ordinal 21 that we cannot process.
+                signersGroup,
+                newUnknownComponentEmptyGroup // A new unknown component with ordinal 101 that we cannot process.
         )
         assertFails { WireTransaction(componentGroupsCompatibleEmptyNew, privacySalt) }
     }
@@ -179,7 +188,9 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
     fun `FilteredTransaction constructors and compatibility`() {
         // Filter out all of the components.
         val ftxNothing = wireTransactionA.buildFilteredTransaction(Predicate { false }) // Nothing filtered.
-        assertEquals(6, ftxNothing.groupHashes.size) // Although nothing filtered, we still receive the group hashes for the top level Merkle tree.
+        // Although nothing filtered, we still receive the group hashes for the top level Merkle tree.
+        // Note that attachments are not sent, but group hashes include the allOnesHash flag for the attachment group hash; that's why we expect +1 group hashes.
+        assertEquals(wireTransactionA.componentGroups.size + 1, ftxNothing.groupHashes.size)
         ftxNothing.verify()
 
         // Include all of the components.
@@ -191,6 +202,7 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
         ftxAll.checkAllComponentsVisible(ATTACHMENTS_GROUP)
         ftxAll.checkAllComponentsVisible(NOTARY_GROUP)
         ftxAll.checkAllComponentsVisible(TIMEWINDOW_GROUP)
+        ftxAll.checkAllComponentsVisible(SIGNERS_GROUP)
 
         // Filter inputs only.
         fun filtering(elem: Any): Boolean {
@@ -220,12 +232,14 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
         assertNotNull(ftxOneInput.filteredComponentGroups.firstOrNull { it.groupIndex == INPUTS_GROUP.ordinal }!!.partialMerkleTree) // And the Merkle tree.
 
         // The old client (receiving more component types than expected) is still compatible.
-        val componentGroupsCompatibleA = listOf(inputGroup,
+        val componentGroupsCompatibleA = listOf(
+                inputGroup,
                 outputGroup,
                 commandGroup,
                 notaryGroup,
                 timeWindowGroup,
-                newUnknownComponentGroup // A new unknown component with ordinal 10,000 that we cannot process.
+                signersGroup,
+                newUnknownComponentGroup // A new unknown component with ordinal 100 that we cannot process.
         )
         val wireTransactionCompatibleA = WireTransaction(componentGroupsCompatibleA, privacySalt)
         val ftxCompatible = wireTransactionCompatibleA.buildFilteredTransaction(Predicate(::filtering))
@@ -243,9 +257,147 @@ class CompatibleTransactionTests : TestDependencyInjectionBase() {
         ftxCompatibleAll.verify()
         assertEquals(wireTransactionCompatibleA.id, ftxCompatibleAll.id)
 
-        // Check we received the last (6th) element that we cannot process (backwards compatibility).
-        assertEquals(6, ftxCompatibleAll.filteredComponentGroups.size)
+        // Check we received the last element that we cannot process (backwards compatibility).
+        assertEquals(wireTransactionCompatibleA.componentGroups.size, ftxCompatibleAll.filteredComponentGroups.size)
 
+        // Hide one component group only.
+        // Filter inputs only.
+        fun filterOutInputs(elem: Any): Boolean {
+            return when (elem) {
+                is StateRef -> false
+                else -> true
+            }
+        }
 
+        val ftxCompatibleNoInputs = wireTransactionCompatibleA.buildFilteredTransaction(Predicate(::filterOutInputs))
+        ftxCompatibleNoInputs.verify()
+        assertFailsWith<ComponentVisibilityException> { ftxCompatibleNoInputs.checkAllComponentsVisible(INPUTS_GROUP) }
+        assertEquals(wireTransactionCompatibleA.componentGroups.size - 1, ftxCompatibleNoInputs.filteredComponentGroups.size)
+        assertEquals(wireTransactionCompatibleA.componentGroups.map { it.groupIndex }.max()!!, ftxCompatibleNoInputs.groupHashes.size - 1)
+    }
+
+    @Test
+    fun `Command visibility tests`() {
+        // 1st and 3rd commands require a signature from KEY_1.
+        val twoCommandsforKey1 = listOf(dummyCommand(DUMMY_KEY_1.public, DUMMY_KEY_2.public), dummyCommand(DUMMY_KEY_2.public),  dummyCommand(DUMMY_KEY_1.public))
+        val componentGroups = listOf(
+                inputGroup,
+                outputGroup,
+                ComponentGroup(COMMANDS_GROUP.ordinal, twoCommandsforKey1.map { it.serialize() }),
+                notaryGroup,
+                timeWindowGroup,
+                ComponentGroup(SIGNERS_GROUP.ordinal, twoCommandsforKey1.map { it.signers.serialize() }),
+                newUnknownComponentGroup // A new unknown component with ordinal 100 that we cannot process.
+        )
+        val wtx = WireTransaction(componentGroups = componentGroups, privacySalt = PrivacySalt())
+
+        // Filter all commands.
+        fun filterCommandsOnly(elem: Any): Boolean {
+            return when (elem) {
+                is Command<*> -> true // Even if one Command is filtered, all signers are automatically filtered as well
+                else -> false
+            }
+        }
+
+        // Filter out commands only.
+        fun filterOutCommands(elem: Any): Boolean {
+            return when (elem) {
+                is Command<*> -> false
+                else -> true
+            }
+        }
+
+        // Filter KEY_1 commands.
+        fun filterKEY1Commands(elem: Any): Boolean {
+            return when (elem) {
+                is Command<*> -> DUMMY_KEY_1.public in elem.signers
+                else -> false
+            }
+        }
+
+        // Filter only one KEY_1 command.
+        fun filterTwoSignersCommands(elem: Any): Boolean {
+            return when (elem) {
+                is Command<*> -> elem.signers.size == 2 // dummyCommand(DUMMY_KEY_1.public) is filtered out.
+                else -> false
+            }
+        }
+
+        // Again filter only one KEY_1 command.
+        fun filterSingleSignersCommands(elem: Any): Boolean {
+            return when (elem) {
+                is Command<*> -> elem.signers.size == 1 // dummyCommand(DUMMY_KEY_1.public, DUMMY_KEY_2.public) is filtered out.
+                else -> false
+            }
+        }
+
+        val allCommandsFtx = wtx.buildFilteredTransaction(Predicate(::filterCommandsOnly))
+        val noCommandsFtx = wtx.buildFilteredTransaction(Predicate(::filterOutCommands))
+        val key1CommandsFtx = wtx.buildFilteredTransaction(Predicate(::filterKEY1Commands))
+        val oneKey1CommandFtxA = wtx.buildFilteredTransaction(Predicate(::filterTwoSignersCommands))
+        val oneKey1CommandFtxB = wtx.buildFilteredTransaction(Predicate(::filterSingleSignersCommands))
+
+        allCommandsFtx.checkCommandVisibility(DUMMY_KEY_1.public)
+        assertFailsWith<ComponentVisibilityException> { noCommandsFtx.checkCommandVisibility(DUMMY_KEY_1.public) }
+        key1CommandsFtx.checkCommandVisibility(DUMMY_KEY_1.public)
+        assertFailsWith<ComponentVisibilityException> { oneKey1CommandFtxA.checkCommandVisibility(DUMMY_KEY_1.public) }
+        assertFailsWith<ComponentVisibilityException> { oneKey1CommandFtxB.checkCommandVisibility(DUMMY_KEY_1.public) }
+
+        allCommandsFtx.checkAllComponentsVisible(SIGNERS_GROUP)
+        assertFailsWith<ComponentVisibilityException> { noCommandsFtx.checkAllComponentsVisible(SIGNERS_GROUP) } // If we filter out all commands, signers are not sent as well.
+        key1CommandsFtx.checkAllComponentsVisible(SIGNERS_GROUP) // If at least one Command is visible, then all Signers are visible.
+        oneKey1CommandFtxA.checkAllComponentsVisible(SIGNERS_GROUP) // If at least one Command is visible, then all Signers are visible.
+        oneKey1CommandFtxB.checkAllComponentsVisible(SIGNERS_GROUP) // If at least one Command is visible, then all Signers are visible.
+
+        // We don't send a list of signers (old clients).
+        val componentGroupsCompatible = listOf(
+                inputGroup,
+                outputGroup,
+                ComponentGroup(COMMANDS_GROUP.ordinal, twoCommandsforKey1.map { it.serialize() }),
+                notaryGroup,
+                timeWindowGroup,
+                // ComponentGroup(SIGNERS_GROUP.ordinal, twoCommandsforKey1.map { it.signers.serialize() }),
+                newUnknownComponentGroup // A new unknown component with ordinal 100 that we cannot process.
+        )
+
+        val wtxCompatible = WireTransaction(componentGroups = componentGroupsCompatible, privacySalt = PrivacySalt())
+
+        val allCommandsFtxCompatible = wtxCompatible.buildFilteredTransaction(Predicate(::filterCommandsOnly))
+        val noCommandsFtxCompatible = wtxCompatible.buildFilteredTransaction(Predicate(::filterOutCommands))
+        val key1CommandsFtxCompatible = wtxCompatible.buildFilteredTransaction(Predicate(::filterKEY1Commands))
+        val oneKey1CommandFtxACompatible = wtxCompatible.buildFilteredTransaction(Predicate(::filterTwoSignersCommands))
+        val oneKey1CommandFtxBCompatible = wtxCompatible.buildFilteredTransaction(Predicate(::filterSingleSignersCommands))
+
+        allCommandsFtxCompatible.checkCommandVisibility(DUMMY_KEY_1.public)
+        assertFailsWith<ComponentVisibilityException> { noCommandsFtxCompatible.checkCommandVisibility(DUMMY_KEY_1.public) }
+        // TODO: Old clients should send all commands, because there is no other way to decide if I see all related commands.
+        assertFailsWith<ComponentVisibilityException> { key1CommandsFtxCompatible.checkCommandVisibility(DUMMY_KEY_1.public) }
+        assertFailsWith<ComponentVisibilityException> { oneKey1CommandFtxACompatible.checkCommandVisibility(DUMMY_KEY_1.public) }
+        assertFailsWith<ComponentVisibilityException> { oneKey1CommandFtxBCompatible.checkCommandVisibility(DUMMY_KEY_1.public) }
+
+        // Because SIGNERS_GROUP is an empty group, checkAllComponentsVisible(SIGNERS_GROUP) always passes.
+        allCommandsFtxCompatible.checkAllComponentsVisible(SIGNERS_GROUP)
+        noCommandsFtxCompatible.checkAllComponentsVisible(SIGNERS_GROUP)
+        key1CommandsFtxCompatible.checkAllComponentsVisible(SIGNERS_GROUP)
+        oneKey1CommandFtxACompatible.checkAllComponentsVisible(SIGNERS_GROUP)
+        oneKey1CommandFtxBCompatible.checkAllComponentsVisible(SIGNERS_GROUP)
+
+        // Test if there is no command to sign.
+        val commandsNoKey1= listOf(dummyCommand(DUMMY_KEY_2.public))
+
+        val componentGroupsNoKey1ToSign = listOf(
+                inputGroup,
+                outputGroup,
+                ComponentGroup(COMMANDS_GROUP.ordinal, commandsNoKey1.map { it.serialize() }),
+                notaryGroup,
+                timeWindowGroup,
+                ComponentGroup(SIGNERS_GROUP.ordinal, commandsNoKey1.map { it.signers.serialize() }),
+                newUnknownComponentGroup // A new unknown component with ordinal 100 that we cannot process.
+        )
+
+        val wtxNoKey1 = WireTransaction(componentGroups = componentGroupsNoKey1ToSign, privacySalt = PrivacySalt())
+        val allCommandsNoKey1Ftx= wtxNoKey1.buildFilteredTransaction(Predicate(::filterCommandsOnly))
+        allCommandsNoKey1Ftx.checkCommandVisibility(DUMMY_KEY_1.public) // This will pass, because there are indeed no commands to sign.
     }
 }
+
