@@ -21,7 +21,7 @@ private val notaryNames = createNotaryNames(3)
 
 // This is not the intended final design for how to use CordformDefinition, please treat this as experimental and DO
 // NOT use this as a design to copy.
-object RaftNotaryCordform : CordformDefinition("build" / "notary-demo-nodes", notaryNames[0].toString()) {
+object RaftNotaryCordform : CordformDefinition("build" / "notary-demo-nodes") {
     private val serviceType = RaftValidatingNotaryService.type
     private val clusterName = CordaX500Name(serviceType.id, "Raft", "Zurich", "CH")
     private val advertisedService = ServiceInfo(serviceType, clusterName)

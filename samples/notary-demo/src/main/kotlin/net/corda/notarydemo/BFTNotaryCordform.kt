@@ -8,13 +8,18 @@ import net.corda.core.internal.div
 import net.corda.core.internal.stream
 import net.corda.core.internal.toTypedArray
 import net.corda.core.utilities.NetworkHostAndPort
-import net.corda.nodeapi.internal.ServiceInfo
 import net.corda.node.services.transactions.BFTNonValidatingNotaryService
 import net.corda.node.services.transactions.minCorrectReplicas
 import net.corda.node.utilities.ServiceIdentityGenerator
+import net.corda.nodeapi.internal.ServiceInfo
 import net.corda.testing.ALICE
 import net.corda.testing.BOB
-import net.corda.testing.internal.demorun.*
+import net.corda.testing.internal.demorun.advertisedServices
+import net.corda.testing.internal.demorun.name
+import net.corda.testing.internal.demorun.node
+import net.corda.testing.internal.demorun.notaryClusterAddresses
+import net.corda.testing.internal.demorun.rpcUsers
+import net.corda.testing.internal.demorun.runNodes
 
 fun main(args: Array<String>) = BFTNotaryCordform.runNodes()
 
@@ -23,7 +28,7 @@ private val notaryNames = createNotaryNames(clusterSize)
 
 // This is not the intended final design for how to use CordformDefinition, please treat this as experimental and DO
 // NOT use this as a design to copy.
-object BFTNotaryCordform : CordformDefinition("build" / "notary-demo-nodes", notaryNames[0].toString()) {
+object BFTNotaryCordform : CordformDefinition("build" / "notary-demo-nodes") {
     private val serviceType = BFTNonValidatingNotaryService.type
     private val clusterName = CordaX500Name(serviceType.id, "BFT", "Zurich", "CH")
     private val advertisedService = ServiceInfo(serviceType, clusterName)

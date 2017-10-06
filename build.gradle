@@ -228,7 +228,6 @@ tasks.withType(Test) {
 
 task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
     directory "./build/nodes"
-    networkMap "O=Controller,OU=corda,L=London,C=GB"
     node {
         name "O=Controller,OU=corda,L=London,C=GB"
         advertisedServices = ["corda.notary.validating"]
