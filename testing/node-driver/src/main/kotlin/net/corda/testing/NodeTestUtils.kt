@@ -20,7 +20,8 @@ import java.nio.file.Path
  * Creates and tests a ledger built by the passed in dsl. The provided services can be customised, otherwise a default
  * of a freshly built [MockServices] is used.
  */
-@JvmOverloads fun ledger(
+@JvmOverloads
+fun ledger(
         services: ServiceHub = MockServices(),
         initialiseSerialization: Boolean = true,
         dsl: LedgerDSL<TestTransactionDSLInterpreter, TestLedgerDSLInterpreter>.() -> Unit
@@ -40,7 +41,8 @@ import java.nio.file.Path
  *
  * @see LedgerDSLInterpreter._transaction
  */
-@JvmOverloads fun transaction(
+@JvmOverloads
+fun transaction(
         transactionLabel: String? = null,
         transactionBuilder: TransactionBuilder = TransactionBuilder(notary = DUMMY_NOTARY),
         initialiseSerialization: Boolean = true,
@@ -53,6 +55,7 @@ fun testNodeConfiguration(
         baseDirectory: Path,
         myLegalName: CordaX500Name): NodeConfiguration {
     abstract class MockableNodeConfiguration : NodeConfiguration // Otherwise Mockito is defeated by val getters.
+
     val nc = spy<MockableNodeConfiguration>()
     whenever(nc.baseDirectory).thenReturn(baseDirectory)
     whenever(nc.myLegalName).thenReturn(myLegalName)
