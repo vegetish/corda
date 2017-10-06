@@ -48,7 +48,7 @@ class NodeConfig(
             .withValue("extraAdvertisedServiceIds", valueFor(extraServices))
             .withFallback(optional("networkMapService", networkMap, { c, n ->
                 c.withValue("address", addressValueFor(n.p2pPort))
-                    .withValue("legalName", valueFor(n.legalName.toString()))
+                        .withValue("legalName", valueFor(n.legalName.toString()))
             }))
             .withValue("webAddress", addressValueFor(webPort))
             .withValue("rpcAddress", addressValueFor(rpcPort))
@@ -60,7 +60,7 @@ class NodeConfig(
     fun toText(): String = toFileConfig().root().render(renderOptions)
 
     fun moveTo(baseDir: Path) = NodeConfig(
-        baseDir, legalName, p2pPort, rpcPort, webPort, h2Port, extraServices, users, networkMap
+            baseDir, legalName, p2pPort, rpcPort, webPort, h2Port, extraServices, users, networkMap
     )
 
     fun install(plugins: Collection<Path>) {
